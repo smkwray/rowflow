@@ -6,10 +6,12 @@ from conftest import fixture_path
 
 from rowflow.panels import (
     TIC_TOTAL,
+    Z1_TOTAL_LEVEL_CHANGE_Q,
     Z1_TOTAL_Q,
     build_rowflow_panel,
     build_tic_row_panel,
     build_z1_row_panel,
+    build_z1_row_panel_from_fred_levels,
 )
 
 
@@ -37,6 +39,20 @@ def test_build_z1_row_panel_converts_saar_to_quarterly(tmp_path: Path) -> None:
     assert panel.loc[1, "z1_row_absorption_leader"] == "private_led"
 
 
+def test_build_z1_row_panel_from_fred_levels_labels_level_changes(tmp_path: Path) -> None:
+    panel = build_z1_row_panel_from_fred_levels(
+        fixture_path("z1", "BOGZ1FL263061130Q.observations.json"),
+        fixture_path("z1", "BOGZ1FL263061145Q.observations.json"),
+        tmp_path / "z1_levels.csv",
+    )
+    assert len(panel) == 3
+    assert panel.loc[0, "quarter"] == "2024Q1"
+    assert panel.loc[1, Z1_TOTAL_LEVEL_CHANGE_Q] == 60000
+    assert panel.loc[1, "z1_row_level_change_leader"] == "private_led"
+    assert panel.loc[1, "z1_flow_measure"] == "level_change_from_fred_levels"
+    assert "z1_foreign_total_treasury_transaction_q_usd_millions" not in panel.columns
+
+
 def test_build_rowflow_panel_merges_sidecars(tmp_path: Path) -> None:
     tic = build_tic_row_panel(fixture_path("tic", "tic_official_private_monthly.csv"), tmp_path / "tic.csv")
     z1 = build_z1_row_panel(fixture_path("z1", "z1_row_official_private_quarterly.csv"), tmp_path / "z1.csv")
@@ -54,3 +70,40 @@ def test_build_rowflow_panel_merges_sidecars(tmp_path: Path) -> None:
     assert "tdc_bank_only_qoq_usd_millions" in panel.columns
     assert "tic_minus_z1_total_quarterly_flow_gap_usd_millions" in panel.columns
     assert panel.loc[0, "tic_quarterly_foreign_total_treasury_net_flow_usd_millions"] == 70
+
+
+def test_build_rowflow_panel_curates_real_sibling_style_columns(tmp_path: Path) -> None:
+    tic = build_tic_row_panel(fixture_path("tic", "tic_official_private_monthly.csv"), tmp_path / "tic.csv")
+    assert len(tic) == 6
+    diagnostics = tmp_path / "diagnostics.csv"
+    diagnostics.write_text(
+        "\n".join(
+            [
+                "month,bill_share,weighted_maturity_years,tga,reserves,deposits,total_mmf_assets,on_rrp,extra_raw",
+                "2024-01-01,0.25,5.8,800,3500,17000,6100,600,drop_me",
+                "2024-02-01,0.30,5.7,750,3520,17050,6150,580,drop_me",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    tdc = tmp_path / "tdc.csv"
+    tdc.write_text(
+        "\n".join(
+            [
+                "date,tdc_tier2_interest_corrected_bank_only_ru_flow,tdc_base_bank_only_ru_flow,extra_raw",
+                "2024-03-31,45,50,drop_me",
+                "2024-06-30,-25,-20,drop_me",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    panel = build_rowflow_panel(
+        tmp_path / "tic.csv",
+        output_path=tmp_path / "rowflow.csv",
+        diagnostics_path=diagnostics,
+        tdc_context_path=tdc,
+    )
+    assert "extra_raw" not in panel.columns
+    assert panel.loc[0, "wam_years"] == 5.8
+    assert panel.loc[0, "tga_usd_millions"] == 800
+    assert panel.loc[0, "tdc_bank_only_qoq_usd_millions"] == 45

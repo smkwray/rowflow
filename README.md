@@ -54,6 +54,11 @@ rowflow build-z1-row-panel \
   --input data/imported/z1/z1_row_official_private.csv \
   --output data/derived/z1_row_quarterly.csv
 
+rowflow build-z1-row-panel-from-fred-levels \
+  --official-level-json data/imported/fp-tdc/BOGZ1FL263061130Q.observations.json \
+  --private-level-json data/imported/fp-tdc/BOGZ1FL263061145Q.observations.json \
+  --output data/derived/z1_row_quarterly_real.csv
+
 rowflow build-rowflow-panel \
   --tic-panel data/derived/tic_row_monthly.csv \
   --z1-panel data/derived/z1_row_quarterly.csv \
@@ -73,6 +78,14 @@ rowflow validate-rowflow-package --strict
 
 For a no-external-data smoke build, use the CSV files under `tests/fixtures/` as inputs. The tests show the complete fixture pipeline.
 
+For a local real-data backend build with sibling repositories present, run:
+
+```bash
+make real-package
+```
+
+The real-data target uses the project external virtual environment by default. It builds the TIC panel from the reused local TIC cache and uses local Z.1/FRED level observations as explicitly labeled level-change context when transaction extracts are not available.
+
 ## Source strategy
 
 `rowflow` should reuse sibling outputs before downloading or transforming new data:
@@ -84,6 +97,7 @@ For a no-external-data smoke build, use the CSV files under `tests/fixtures/` as
 - `tdcest`: canonical quarterly TDC anchors.
 - `tdcpass`: pass-through context.
 - `tdcatlas`: episode framing.
+- `fp-tdc`: optional local FRED/Z.1 level cache for official/private ROW Treasury level context.
 
 The source contracts in `config/source_contracts.yml` record preferred sibling artifacts and the primary public sources to use only after reusable sibling artifacts are unavailable or insufficient.
 

@@ -6,7 +6,12 @@ from pathlib import Path
 from rowflow.config import config_dir_from_root, validate_config_dir
 from rowflow.contracts import copy_sibling_outputs, validate_sibling_sources
 from rowflow.manifests import write_output_manifest
-from rowflow.panels import build_rowflow_panel, build_tic_row_panel, build_z1_row_panel
+from rowflow.panels import (
+    build_rowflow_panel,
+    build_tic_row_panel,
+    build_z1_row_panel,
+    build_z1_row_panel_from_fred_levels,
+)
 from rowflow.reports import write_rowflow_report
 from rowflow.validation import has_errors, print_messages, validate_rowflow_package
 
@@ -53,6 +58,11 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--input", required=True, help="Input Z.1 CSV file.")
     p.add_argument("--output", required=True, help="Output CSV path.")
     p.add_argument("--transactions-are-quarterly", action="store_true", help="Do not divide transaction input values by four.")
+
+    p = sub.add_parser("build-z1-row-panel-from-fred-levels", help="Build quarterly Z.1 ROW comparison panel from local FRED level JSONs.")
+    p.add_argument("--official-level-json", required=True, help="FRED JSON observations for BOGZ1FL263061130Q.")
+    p.add_argument("--private-level-json", required=True, help="FRED JSON observations for BOGZ1FL263061145Q.")
+    p.add_argument("--output", required=True, help="Output CSV path.")
 
     p = sub.add_parser("build-rowflow-panel", help="Merge TIC, Z.1, TDC, and diagnostic sidecars.")
     p.add_argument("--tic-panel", required=True, help="Built TIC row panel.")
@@ -121,6 +131,15 @@ def main(argv: list[str] | None = None) -> int:
                 Path(args.input),
                 Path(args.output),
                 transactions_are_saar=not args.transactions_are_quarterly,
+            )
+            print(f"Wrote {len(panel):,} row(s) to {args.output}")
+            return 0
+
+        if args.command == "build-z1-row-panel-from-fred-levels":
+            panel = build_z1_row_panel_from_fred_levels(
+                official_level_json_path=Path(args.official_level_json),
+                private_level_json_path=Path(args.private_level_json),
+                output_path=Path(args.output),
             )
             print(f"Wrote {len(panel):,} row(s) to {args.output}")
             return 0

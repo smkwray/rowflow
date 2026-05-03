@@ -21,6 +21,12 @@ def test_cli_fixture_pipeline(tmp_path: Path) -> None:
     assert main(["build-tic-row-panel", "--input", str(fixture_path("tic", "tic_official_private_monthly.csv")), "--output", str(tic)]) == 0
     assert main(["build-z1-row-panel", "--input", str(fixture_path("z1", "z1_row_official_private_quarterly.csv")), "--output", str(z1)]) == 0
     assert main([
+        "build-z1-row-panel-from-fred-levels",
+        "--official-level-json", str(fixture_path("z1", "BOGZ1FL263061130Q.observations.json")),
+        "--private-level-json", str(fixture_path("z1", "BOGZ1FL263061145Q.observations.json")),
+        "--output", str(tmp_path / "data/derived/z1_row_quarterly_from_levels.csv"),
+    ]) == 0
+    assert main([
         "build-rowflow-panel",
         "--tic-panel", str(tic),
         "--z1-panel", str(z1),

@@ -22,11 +22,9 @@ schemas:
     primary_key: [quarter]
     required_columns:
       - quarter
-      - z1_foreign_official_treasury_transaction_q_usd_millions
-      - z1_foreign_private_treasury_transaction_q_usd_millions
-      - z1_foreign_total_treasury_transaction_q_usd_millions
-      - z1_foreign_official_share_of_transaction
-      - z1_row_absorption_leader
+    required_measure_columns_any:
+      - [z1_foreign_official_treasury_transaction_q_usd_millions, z1_foreign_private_treasury_transaction_q_usd_millions, z1_foreign_total_treasury_transaction_q_usd_millions]
+      - [z1_foreign_official_treasury_level_change_q_usd_millions, z1_foreign_private_treasury_level_change_q_usd_millions, z1_foreign_total_treasury_level_change_q_usd_millions]
   rowflow_panel:
     primary_key: [month]
     required_columns:

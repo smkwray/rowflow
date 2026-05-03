@@ -14,6 +14,9 @@ canonical_variables:
     z1_foreign_total_treasury_transaction_q_usd_millions: Official plus private quarterly transaction.
     z1_foreign_official_treasury_level_usd_millions: Official ROW Treasury level, if available.
     z1_foreign_private_treasury_level_usd_millions: Private ROW Treasury level, if available.
+    z1_foreign_official_treasury_level_change_q_usd_millions: Quarter-over-quarter official ROW Treasury level change, when transaction series are unavailable.
+    z1_foreign_private_treasury_level_change_q_usd_millions: Quarter-over-quarter private ROW Treasury level change, when transaction series are unavailable.
+    z1_flow_measure: Source semantics for the Z.1 comparison columns, such as transaction_flow or level_change_from_fred_levels.
   diagnostics:
     bill_share: Monthly Treasury bill share diagnostic from buycurve/tdcladder.
     wam_years: Weighted-average maturity in years from buycurve/tdcladder.
@@ -38,9 +41,11 @@ aliases:
   z1_official_transactions_saar:
     - z1_foreign_official_treasury_transactions_saar_usd_millions
     - BOGZ1FA263061130Q
+    - BOGZ1FU263061130Q
   z1_private_transactions_saar:
     - z1_foreign_private_treasury_transactions_saar_usd_millions
     - BOGZ1FA263061145Q
+    - BOGZ1FU263061145Q
   z1_official_level:
     - z1_foreign_official_treasury_level_usd_millions
     - BOGZ1FL263061130Q

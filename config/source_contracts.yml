@@ -110,6 +110,22 @@ sibling_artifacts:
         required: false
         notes: Optional episode labels for descriptive figures.
 
+  fp-tdc:
+    root_env: FPTDC_ROOT
+    default_root: ../fp-tdc
+    role: Optional local FRED/Z.1 foreign Treasury level cache used only when no canonical rowflow Z.1 transaction extract is available.
+    artifacts:
+      z1_foreign_official_treasury_level_json:
+        relative_path: data/raw/foreign/fred/current/observations/BOGZ1FL263061130Q.observations.json
+        destination: data/imported/fp-tdc/BOGZ1FL263061130Q.observations.json
+        required: false
+        notes: Local FRED observation cache for foreign official Treasury levels; use as level-change context, not transaction flow.
+      z1_foreign_private_treasury_level_json:
+        relative_path: data/raw/foreign/fred/current/observations/BOGZ1FL263061145Q.observations.json
+        destination: data/imported/fp-tdc/BOGZ1FL263061145Q.observations.json
+        required: false
+        notes: Local FRED observation cache for foreign private Treasury levels; use as level-change context, not transaction flow.
+
 primary_sources_after_sibling_reuse:
   tic_slt_table3:
     source_family: Treasury International Capital System
@@ -136,9 +152,9 @@ primary_sources_after_sibling_reuse:
     z1_landing_page: https://www.federalreserve.gov/releases/z1/
     fred_series:
       official_level: BOGZ1FL263061130Q
-      official_transactions_saar: BOGZ1FA263061130Q
+      official_transactions: BOGZ1FU263061130Q
       private_level: BOGZ1FL263061145Q
-      private_transactions_saar: BOGZ1FA263061145Q
+      private_transactions: BOGZ1FU263061145Q
     role: Quarterly rest-of-world official/private Treasury holdings and transactions comparison panel.
-    input_units: Millions of U.S. dollars; transaction series are seasonally adjusted annual rate unless using an alternate NIPA/Z.1 extract.
-    transform: Divide SAAR transactions by 4 for quarter-flow comparison.
+    input_units: Millions of U.S. dollars. Transaction extracts and level extracts must be labeled separately.
+    transform: Use transaction series directly when present. If only level series are available, compute quarter-over-quarter level changes and label them as level-change context.

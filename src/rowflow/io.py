@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 from collections.abc import Iterable
 from pathlib import Path
 
@@ -23,6 +24,27 @@ def read_csv_flexible(path: Path) -> pd.DataFrame:
                 return pd.read_csv(path, sep="\t", skiprows=row_number)
         return pd.read_csv(path, sep=None, engine="python")
     return pd.read_csv(path)
+
+
+def read_fred_observations_json(path: Path, value_name: str) -> pd.DataFrame:
+    """Read a FRED observations JSON payload into date/value columns."""
+    payload = json.loads(Path(path).read_text(encoding="utf-8"))
+    observations = payload.get("observations") if isinstance(payload, dict) else payload
+    if not isinstance(observations, list):
+        raise ValueError(f"FRED JSON input does not contain an observations list: {path}")
+    rows = []
+    for observation in observations:
+        rows.append(
+            {
+                "date": observation.get("date"),
+                value_name: observation.get("value"),
+            }
+        )
+    out = pd.DataFrame(rows)
+    if out.empty:
+        raise ValueError(f"FRED JSON input contains no observations: {path}")
+    out[value_name] = pd.to_numeric(out[value_name].replace({".": None, "": None}), errors="coerce")
+    return out
 
 
 def write_csv(df: pd.DataFrame, path: Path) -> None:

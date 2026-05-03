@@ -21,11 +21,11 @@ Primary source after sibling reuse: Federal Reserve Z.1, with FRED as a convenie
 
 - Z.1 landing page: https://www.federalreserve.gov/releases/z1/
 - Official Treasury level: `BOGZ1FL263061130Q`
-- Official Treasury transactions: `BOGZ1FA263061130Q`
+- Official Treasury transactions: `BOGZ1FU263061130Q`
 - Private Treasury level: `BOGZ1FL263061145Q`
-- Private Treasury transactions: `BOGZ1FA263061145Q`
+- Private Treasury transactions: `BOGZ1FU263061145Q`
 
-The FRED transaction series are published in millions of U.S. dollars at seasonally adjusted annual rates. The starter transform divides those transaction values by four to create quarterly-flow comparison columns. If a future implementation reads a native quarterly-flow Z.1 extract, update the config and do not divide again.
+The preferred comparison is a Z.1 transaction extract when both official and private transaction series are available. When only local level-series caches are available, `rowflow` computes quarter-over-quarter level changes and labels those columns as level-change context. Level changes should not be described as Z.1 transaction flows.
 
 ## Diagnostic sources
 
@@ -35,3 +35,4 @@ Reuse these sibling panels before pulling raw data:
 - `liqsub/data/clean/monthly_liquidity_substitution_panel.csv` for TGA, reserves, deposits, MMFs, and ON RRP.
 - `tdcest/data/processed/tdc_estimates.csv` for quarterly TDC anchors.
 - `tdcladder`, `bankcap`, `tdcpass`, and `tdcatlas` sidecars when present.
+- A local FRED/Z.1 level cache from another project can be used as an optional accelerator for official/private Z.1 level context, but only with level-change labels.

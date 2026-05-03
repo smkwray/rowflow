@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from rowflow.io import read_csv_flexible, write_csv
+from rowflow.io import read_csv_flexible, read_fred_observations_json, write_csv
 from rowflow.periods import month_to_quarter, normalize_month, normalize_quarter
 
 TIC_OFFICIAL = "tic_foreign_official_treasury_net_flow_usd_millions"
@@ -18,6 +18,11 @@ Z1_PRIVATE_Q = "z1_foreign_private_treasury_transaction_q_usd_millions"
 Z1_TOTAL_Q = "z1_foreign_total_treasury_transaction_q_usd_millions"
 Z1_OFFICIAL_SHARE = "z1_foreign_official_share_of_transaction"
 Z1_PRIVATE_SHARE = "z1_foreign_private_share_of_transaction"
+Z1_OFFICIAL_LEVEL_CHANGE_Q = "z1_foreign_official_treasury_level_change_q_usd_millions"
+Z1_PRIVATE_LEVEL_CHANGE_Q = "z1_foreign_private_treasury_level_change_q_usd_millions"
+Z1_TOTAL_LEVEL_CHANGE_Q = "z1_foreign_total_treasury_level_change_q_usd_millions"
+Z1_OFFICIAL_SHARE_LEVEL_CHANGE = "z1_foreign_official_share_of_level_change"
+Z1_PRIVATE_SHARE_LEVEL_CHANGE = "z1_foreign_private_share_of_level_change"
 
 TIC_OFFICIAL_ALIASES = [
     TIC_OFFICIAL,
@@ -37,10 +42,12 @@ TIC_PRIVATE_ALIASES = [
 Z1_OFFICIAL_SAAR_ALIASES = [
     "z1_foreign_official_treasury_transactions_saar_usd_millions",
     "BOGZ1FA263061130Q",
+    "BOGZ1FU263061130Q",
 ]
 Z1_PRIVATE_SAAR_ALIASES = [
     "z1_foreign_private_treasury_transactions_saar_usd_millions",
     "BOGZ1FA263061145Q",
+    "BOGZ1FU263061145Q",
 ]
 Z1_OFFICIAL_Q_ALIASES = [Z1_OFFICIAL_Q, "z1_official_transaction_q_usd_millions"]
 Z1_PRIVATE_Q_ALIASES = [Z1_PRIVATE_Q, "z1_private_transaction_q_usd_millions"]
@@ -204,7 +211,8 @@ def build_z1_row_panel(
         private_saar_col = _first_existing_column(work, Z1_PRIVATE_SAAR_ALIASES)
         if official_saar_col is None or private_saar_col is None:
             raise ValueError("Z.1 input must include official/private transaction columns")
-        divisor = 4.0 if transactions_are_saar else 1.0
+        uses_native_z1_transaction = official_saar_col.startswith("BOGZ1FU") and private_saar_col.startswith("BOGZ1FU")
+        divisor = 1.0 if uses_native_z1_transaction or not transactions_are_saar else 4.0
         official_q = _numeric(work[official_saar_col]) / divisor
         private_q = _numeric(work[private_saar_col]) / divisor
 
@@ -235,16 +243,75 @@ def build_z1_row_panel(
     return out
 
 
+def build_z1_row_panel_from_fred_levels(
+    official_level_json_path: Path,
+    private_level_json_path: Path,
+    output_path: Path | None = None,
+) -> pd.DataFrame:
+    """Build quarterly Z.1 official/private ROW panel from local FRED level JSONs.
+
+    This fallback is an accounting context, not a transaction-flow source: flow-like
+    comparison columns are labeled as level changes so they are not confused with
+    Z.1 transaction series.
+    """
+    official = read_fred_observations_json(
+        Path(official_level_json_path),
+        "z1_foreign_official_treasury_level_usd_millions",
+    )
+    private = read_fred_observations_json(
+        Path(private_level_json_path),
+        "z1_foreign_private_treasury_level_usd_millions",
+    )
+    official["quarter"] = normalize_quarter(official["date"])
+    private["quarter"] = normalize_quarter(private["date"])
+    out = official.drop(columns=["date"]).merge(private.drop(columns=["date"]), on="quarter", how="outer")
+    out = out.sort_values("quarter").reset_index(drop=True)
+    out[Z1_OFFICIAL_LEVEL_CHANGE_Q] = out["z1_foreign_official_treasury_level_usd_millions"].diff()
+    out[Z1_PRIVATE_LEVEL_CHANGE_Q] = out["z1_foreign_private_treasury_level_usd_millions"].diff()
+    out[Z1_TOTAL_LEVEL_CHANGE_Q] = out[Z1_OFFICIAL_LEVEL_CHANGE_Q] + out[Z1_PRIVATE_LEVEL_CHANGE_Q]
+    out[Z1_OFFICIAL_SHARE_LEVEL_CHANGE] = _safe_share(out[Z1_OFFICIAL_LEVEL_CHANGE_Q], out[Z1_TOTAL_LEVEL_CHANGE_Q])
+    out[Z1_PRIVATE_SHARE_LEVEL_CHANGE] = _safe_share(out[Z1_PRIVATE_LEVEL_CHANGE_Q], out[Z1_TOTAL_LEVEL_CHANGE_Q])
+    out["z1_row_level_change_leader"] = [
+        _leader(official_change, private_change, total_change)
+        for official_change, private_change, total_change in zip(
+            out[Z1_OFFICIAL_LEVEL_CHANGE_Q],
+            out[Z1_PRIVATE_LEVEL_CHANGE_Q],
+            out[Z1_TOTAL_LEVEL_CHANGE_Q],
+            strict=True,
+        )
+    ]
+    out["z1_flow_measure"] = "level_change_from_fred_levels"
+    if output_path is not None:
+        write_csv(out, Path(output_path))
+    return out
+
+
+def _coalesce_numeric(df: pd.DataFrame, candidates: list[str]) -> pd.Series:
+    result = pd.Series(pd.NA, index=df.index, dtype="Float64")
+    for candidate in candidates:
+        if candidate in df.columns:
+            result = result.fillna(_numeric(df[candidate]))
+    return result
+
+
 def _normalize_diagnostics(input_path: Path) -> pd.DataFrame:
     diagnostics = read_csv_flexible(input_path)
     date_column = "month" if "month" in diagnostics.columns else "date" if "date" in diagnostics.columns else None
     if date_column is None:
         raise ValueError("Diagnostics input must include month or date")
     diagnostics = diagnostics.copy()
-    diagnostics["month"] = normalize_month(diagnostics[date_column])
-    if date_column != "month":
-        diagnostics = diagnostics.drop(columns=[date_column])
-    return diagnostics.drop_duplicates(subset=["month"]).sort_values("month")
+    out = pd.DataFrame({"month": normalize_month(diagnostics[date_column])})
+    out["bill_share"] = _coalesce_numeric(diagnostics, ["bill_share", "bill_share_by_accepted_amount"])
+    out["wam_years"] = _coalesce_numeric(diagnostics, ["wam_years", "weighted_maturity_years", "weighted_average_maturity_years"])
+    out["tga_usd_millions"] = _coalesce_numeric(diagnostics, ["tga_usd_millions", "tga", "tga_wednesday", "tga_week_average"])
+    out["reserves_usd_millions"] = _coalesce_numeric(diagnostics, ["reserves_usd_millions", "reserves"])
+    out["deposits_usd_millions"] = _coalesce_numeric(diagnostics, ["deposits_usd_millions", "deposits", "domestic_deposits"])
+    mmf_assets = _coalesce_numeric(diagnostics, ["mmf_assets_usd_millions", "total_mmf_assets", "mmf_assets"])
+    if mmf_assets.isna().all() and {"retail_mmf_assets", "institutional_mmf_assets"}.issubset(diagnostics.columns):
+        mmf_assets = _numeric(diagnostics["retail_mmf_assets"]) + _numeric(diagnostics["institutional_mmf_assets"])
+    out["mmf_assets_usd_millions"] = mmf_assets
+    out["on_rrp_usd_millions"] = _coalesce_numeric(diagnostics, ["on_rrp_usd_millions", "on_rrp"])
+    return out.drop_duplicates(subset=["month"]).sort_values("month")
 
 
 def _normalize_tdc_context(input_path: Path) -> pd.DataFrame:
@@ -253,10 +320,29 @@ def _normalize_tdc_context(input_path: Path) -> pd.DataFrame:
     if date_column is None:
         raise ValueError("TDC context input must include quarter or date")
     tdc = tdc.copy()
-    tdc["quarter"] = normalize_quarter(tdc[date_column])
-    if date_column != "quarter":
-        tdc = tdc.drop(columns=[date_column])
-    return tdc.drop_duplicates(subset=["quarter"]).sort_values("quarter")
+    out = pd.DataFrame({"quarter": normalize_quarter(tdc[date_column])})
+    out["tdc_bank_only_qoq_usd_millions"] = _coalesce_numeric(
+        tdc,
+        [
+            "tdc_bank_only_qoq_usd_millions",
+            "tdc_tier2_interest_corrected_bank_only_ru_flow",
+            "tdc_tier2_bank_only_qoq",
+            "tdc_bank_only_qoq",
+            "tdc_base_bank_only_ru_flow",
+        ],
+    )
+    out["tdc_tier2_interest_corrected_bank_only_qoq_usd_millions"] = _coalesce_numeric(
+        tdc,
+        [
+            "tdc_tier2_interest_corrected_bank_only_qoq_usd_millions",
+            "tdc_tier2_interest_corrected_bank_only_ru_flow",
+            "tdc_tier2_bank_only_qoq",
+        ],
+    )
+    out["tdc_source"] = "tdcest"
+    if "tdc_source" in tdc.columns:
+        out["tdc_source"] = tdc["tdc_source"].fillna("tdcest")
+    return out.drop_duplicates(subset=["quarter"]).sort_values("quarter")
 
 
 def build_rowflow_panel(

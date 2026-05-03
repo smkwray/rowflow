@@ -5,7 +5,14 @@ from pathlib import Path
 import pandas as pd
 
 from rowflow.io import ensure_parent, read_csv_flexible
-from rowflow.panels import TIC_OFFICIAL, TIC_OFFICIAL_SHARE, TIC_PRIVATE, TIC_TOTAL
+from rowflow.panels import (
+    TIC_OFFICIAL,
+    TIC_OFFICIAL_SHARE,
+    TIC_PRIVATE,
+    TIC_TOTAL,
+    Z1_TOTAL_LEVEL_CHANGE_Q,
+    Z1_TOTAL_Q,
+)
 
 
 def _fmt_number(value: float | int | None) -> str:
@@ -97,8 +104,16 @@ def write_rowflow_report(
     )
 
     z1_rows = 0
+    z1_measure = "not supplied"
     if z1_panel_path is not None and Path(z1_panel_path).exists():
-        z1_rows = len(read_csv_flexible(Path(z1_panel_path)))
+        z1_panel = read_csv_flexible(Path(z1_panel_path))
+        z1_rows = len(z1_panel)
+        if "z1_flow_measure" in z1_panel.columns:
+            z1_measure = str(z1_panel["z1_flow_measure"].dropna().iloc[-1])
+        elif Z1_TOTAL_Q in z1_panel.columns:
+            z1_measure = "transaction_flow"
+        elif Z1_TOTAL_LEVEL_CHANGE_Q in z1_panel.columns:
+            z1_measure = "level_change"
 
     lines = [
         "# rowflow accounting report",
@@ -109,7 +124,7 @@ def write_rowflow_report(
         "",
         "The report splits rest-of-world Treasury absorption into foreign official and foreign private components, then joins those components to maturity and liquidity diagnostics. TIC and Z.1 are treated as complementary source definitions, not interchangeable measures.",
         "",
-        "## Current fixture/build summary",
+        "## Current build summary",
         "",
         f"- Monthly panel rows: {len(panel):,}",
         f"- Latest month: {latest['month']}",
@@ -118,6 +133,13 @@ def write_rowflow_report(
         f"- Sum of private TIC flows in panel: {_fmt_number(private_sum)} USD millions",
         f"- Sum of total TIC flows in panel: {_fmt_number(total_sum)} USD millions",
         f"- Z.1 comparison rows supplied: {z1_rows:,}",
+        f"- Z.1 comparison measure: {z1_measure}",
+        "",
+        "## Evidence layers",
+        "",
+        "- TIC monthly evidence is transaction-flow evidence under the TIC source sign convention.",
+        "- Z.1 quarterly evidence is accounting context. When transaction series are unavailable, the package labels level changes separately from transactions.",
+        "- Sibling diagnostics from buycurve, liqsub, tdcest, and tdcpass are interpretation sidecars, not causal controls or structural parameters.",
         "",
         "## Official-led versus private-led classification",
         "",

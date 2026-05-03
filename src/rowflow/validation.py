@@ -7,6 +7,7 @@ import pandas as pd
 
 from rowflow.config import load_all_configs, validate_config_dir
 from rowflow.io import read_csv_flexible
+from rowflow.panels import Z1_TOTAL_LEVEL_CHANGE_Q, Z1_TOTAL_Q
 
 
 def print_messages(messages: list[dict[str, str]]) -> None:
@@ -67,6 +68,32 @@ def validate_rowflow_package(
     if panel_path.exists():
         panel = read_csv_flexible(panel_path)
         messages.extend(validate_schema(panel, schemas["rowflow_panel"]["required_columns"], "rowflow_panel"))
+        if "month" in panel.columns and not panel.empty:
+            messages.append(
+                {
+                    "level": "ok",
+                    "check": "coverage",
+                    "message": f"rowflow_panel coverage: {panel['month'].iloc[0]}..{panel['month'].iloc[-1]}",
+                }
+            )
+        optional = schemas["rowflow_panel"].get("optional_columns", [])
+        found_optional = [column for column in optional if column in panel.columns and panel[column].notna().any()]
+        if found_optional:
+            messages.append(
+                {
+                    "level": "ok",
+                    "check": "diagnostics",
+                    "message": f"rowflow_panel has diagnostic columns: {', '.join(found_optional)}",
+                }
+            )
+        elif strict:
+            messages.append({"level": "error", "check": "diagnostics", "message": "rowflow_panel has no populated diagnostic sidecars"})
+        if Z1_TOTAL_Q in panel.columns and panel[Z1_TOTAL_Q].notna().any():
+            messages.append({"level": "ok", "check": "z1_context", "message": "rowflow_panel includes Z.1 transaction context"})
+        elif Z1_TOTAL_LEVEL_CHANGE_Q in panel.columns and panel[Z1_TOTAL_LEVEL_CHANGE_Q].notna().any():
+            messages.append({"level": "ok", "check": "z1_context", "message": "rowflow_panel includes Z.1 level-change context"})
+        elif strict:
+            messages.append({"level": "error", "check": "z1_context", "message": "rowflow_panel missing populated Z.1 context"})
     else:
         messages.append({"level": "error" if strict else "warning", "check": "artifact", "message": f"missing panel {panel_path}"})
 
