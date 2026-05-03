@@ -113,14 +113,14 @@ The real-data target uses the project external virtual environment by default. I
 
 `rowflow` should reuse sibling outputs before downloading or transforming new data:
 
-- `buycurve`: Treasury issuance composition, bill share, WAM, buyer mix, and TIC bridge context.
-- `tdcladder`: maturity/liquidity ladder context.
-- `liqsub`: deposits, MMFs, ON RRP, reserves, TGA, and plumbing diagnostics.
-- `bankcap`: H.8 bank-group mechanism context.
-- `tdcest`: canonical quarterly TDC anchors.
-- `tdcpass`: pass-through context.
-- `tdcatlas`: episode framing.
-- `fp-tdc`: optional local FRED/Z.1 level cache for official/private ROW Treasury level context.
+- [`buycurve`](https://github.com/smkwray/buycurve): Treasury issuance composition, bill share, WAM, buyer mix, and TIC bridge context.
+- [`tdcladder`](https://github.com/smkwray/tdcladder): maturity/liquidity ladder context.
+- [`liqsub`](https://github.com/smkwray/liqsub): deposits, MMFs, ON RRP, reserves, TGA, and plumbing diagnostics.
+- [`bankcap`](https://github.com/smkwray/bankcap): H.8 bank-group mechanism context.
+- [`tdcest`](https://github.com/smkwray/tdcest): canonical quarterly TDC anchors.
+- [`tdcpass`](https://github.com/smkwray/tdcpass): pass-through context.
+- [`tdcatlas`](https://github.com/smkwray/tdcatlas): episode framing.
+- [`fp-tdc`](https://github.com/smkwray/fp-tdc): optional local FRED/Z.1 level cache for official/private ROW Treasury level context.
 
 The source contracts in `config/source_contracts.yml` record preferred sibling artifacts and the primary public sources to use only after reusable sibling artifacts are unavailable or insufficient.
 

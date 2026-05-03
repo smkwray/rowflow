@@ -1,7 +1,7 @@
 project:
   name: rowflow
   version: 0.1.0
-  status: starter-skeleton
+  status: backend-complete
   public_description: >-
     Descriptive foreign official/private rest-of-world Treasury absorption
     infrastructure for the Treasury Deposit Channel project family.
