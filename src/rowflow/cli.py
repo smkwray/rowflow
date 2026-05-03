@@ -90,6 +90,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--z1-panel", default=None, help="Built Z.1 row panel CSV.")
     p.add_argument("--output-md", required=True, help="Output markdown report path.")
     p.add_argument("--figure-dir", required=True, help="Output figure directory.")
+    p.add_argument("--table-dir", default=None, help="Output results table directory. Defaults to OUTPUT_PARENT/tables.")
 
     p = sub.add_parser("write-output-manifest", help="Write output manifest with hashes.")
     p.add_argument("--root", default=".", help="Project root. Defaults to current directory.")
@@ -190,10 +191,13 @@ def main(argv: list[str] | None = None) -> int:
                 z1_panel_path=Path(args.z1_panel) if args.z1_panel else None,
                 output_md=Path(args.output_md),
                 figure_dir=Path(args.figure_dir),
+                table_dir=Path(args.table_dir) if args.table_dir else None,
             )
             print(f"Wrote report to {result['report']}")
             for figure in result["figures"]:
                 print(f"Wrote figure {figure}")
+            for table in result["tables"]:
+                print(f"Wrote table {table}")
             return 0
 
         if args.command == "write-output-manifest":

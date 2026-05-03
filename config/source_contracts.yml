@@ -174,4 +174,6 @@ primary_sources_after_sibling_reuse:
     fred_graph_csv:
       official_transactions: https://fred.stlouisfed.org/graph/fredgraph.csv?id=BOGZ1FU263061130Q
       private_transactions: https://fred.stlouisfed.org/graph/fredgraph.csv?id=BOGZ1FU263061145Q
+      official_level: https://fred.stlouisfed.org/graph/fredgraph.csv?id=BOGZ1FL263061130Q
+      private_level: https://fred.stlouisfed.org/graph/fredgraph.csv?id=BOGZ1FL263061145Q
     transform: Use transaction series directly when present. If only level series are available, compute quarter-over-quarter level changes and label them as level-change context.

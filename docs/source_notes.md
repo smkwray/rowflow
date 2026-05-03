@@ -32,7 +32,7 @@ Primary source after sibling reuse: Federal Reserve Z.1, with FRED as a convenie
 
 The preferred comparison is a Z.1 transaction extract when both official and private transaction series are available. When only local level-series caches are available, `rowflow` computes quarter-over-quarter level changes and labels those columns as level-change context. Level changes should not be described as Z.1 transaction flows.
 
-The real backend build downloads FRED graph CSVs for `BOGZ1FU263061130Q` and `BOGZ1FU263061145Q`, merges them by observation date, and uses those quarterly transaction values directly. The `FA` series are SAAR flows and should be divided by four if used; the `FU` series are already quarterly transaction amounts.
+The real backend build downloads FRED graph CSVs for `BOGZ1FU263061130Q` and `BOGZ1FU263061145Q`, merges them by observation date, and uses those quarterly transaction values directly. It also carries `BOGZ1FL263061130Q` and `BOGZ1FL263061145Q` levels for stock-vs-flow figures. The `FA` series are SAAR flows and should be divided by four if used; the `FU` series are already quarterly transaction amounts.
 
 ## Diagnostic sources
 

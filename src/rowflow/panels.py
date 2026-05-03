@@ -67,6 +67,8 @@ Z1_PRIVATE_LEVEL_ALIASES = [
 Z1_FRED_TRANSACTION_SERIES = {
     "BOGZ1FU263061130Q": "official",
     "BOGZ1FU263061145Q": "private",
+    "BOGZ1FL263061130Q": "official_level",
+    "BOGZ1FL263061145Q": "private_level",
 }
 FRED_GRAPH_CSV_URL = "https://fred.stlouisfed.org/graph/fredgraph.csv?id={series_id}"
 
@@ -324,6 +326,7 @@ def build_z1_row_panel(
     if private_level is not None:
         out["z1_foreign_private_treasury_level_usd_millions"] = _numeric(work[private_level])
 
+    out = out.dropna(subset=[Z1_OFFICIAL_Q, Z1_PRIVATE_Q], how="all").copy()
     out[Z1_TOTAL_Q] = out[Z1_OFFICIAL_Q] + out[Z1_PRIVATE_Q]
     out[Z1_OFFICIAL_SHARE] = _safe_share(out[Z1_OFFICIAL_Q], out[Z1_TOTAL_Q])
     out[Z1_PRIVATE_SHARE] = _safe_share(out[Z1_PRIVATE_Q], out[Z1_TOTAL_Q])

@@ -73,6 +73,7 @@ def test_build_z1_row_panel_uses_fred_fu_transactions_without_saar_division(tmp_
     assert len(panel) == 2
     assert panel.loc[0, Z1_TOTAL_Q] == 300
     assert panel.loc[1, Z1_TOTAL_Q] == 300
+    assert panel.loc[0, "z1_foreign_official_treasury_level_usd_millions"] == 3800000
 
 
 def test_build_z1_row_panel_from_fred_levels_labels_level_changes(tmp_path: Path) -> None:

@@ -30,7 +30,7 @@ The default rule is to copy from sibling outputs before downloading or transform
 
 ## Interpretation hook
 
-The backend is designed to separate stock and flow claims. A stock chart can show foreign official institutions as a large holder base while `rowflow` can show that recent marginal TIC transaction absorption is private-led. That is not a contradiction: it is the difference between who owns the stock and who absorbs the latest flow.
+The backend is designed to separate stock and flow claims. A stock chart can show foreign official institutions as a large holder base while `rowflow` can show that recent marginal TIC transaction absorption is private-led. That is not a contradiction: it is the difference between who owns the stock and who absorbs the latest flow. The generated `stock_vs_flow.svg` and `rowflow_results_summary.csv` are the intended paper/deck artifacts for that claim.
 
 ## Claim boundary
 

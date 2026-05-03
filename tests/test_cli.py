@@ -16,6 +16,7 @@ def test_cli_fixture_pipeline(tmp_path: Path) -> None:
     panel = tmp_path / "data/derived/rowflow_panel.csv"
     report = tmp_path / "output/reports/rowflow_accounting_report.md"
     figures = tmp_path / "output/figures"
+    tables = tmp_path / "output/tables"
     manifest = tmp_path / "output/manifests/rowflow_manifest.json"
 
     assert main(["build-tic-row-panel", "--input", str(fixture_path("tic", "tic_official_private_monthly.csv")), "--output", str(tic)]) == 0
@@ -34,7 +35,14 @@ def test_cli_fixture_pipeline(tmp_path: Path) -> None:
         "--tdc-context", str(fixture_path("tdcest", "tdc_quarterly_context.csv")),
         "--output", str(panel),
     ]) == 0
-    assert main(["write-rowflow-report", "--panel", str(panel), "--z1-panel", str(z1), "--output-md", str(report), "--figure-dir", str(figures)]) == 0
+    assert main([
+        "write-rowflow-report",
+        "--panel", str(panel),
+        "--z1-panel", str(z1),
+        "--output-md", str(report),
+        "--figure-dir", str(figures),
+        "--table-dir", str(tables),
+    ]) == 0
     assert main(["write-output-manifest", "--root", str(tmp_path), "--output", str(manifest)]) == 0
     assert main([
         "validate-rowflow-package",
@@ -47,3 +55,4 @@ def test_cli_fixture_pipeline(tmp_path: Path) -> None:
     ]) == 0
     assert report.exists()
     assert (figures / "foreign_official_private_flows.svg").exists()
+    assert (tables / "rowflow_results_summary.csv").exists()
