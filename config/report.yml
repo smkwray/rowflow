@@ -1,0 +1,11 @@
+report:
+  title: rowflow accounting report
+  subtitle: Foreign official versus foreign private Treasury absorption
+  figure_set:
+    - foreign_official_private_flows.svg
+    - official_share.svg
+    - leader_counts.svg
+  public_safe_language:
+    - This report is descriptive accounting only and does not identify causal domestic liquidity effects.
+    - TIC and Z.1 are complementary source definitions, not interchangeable measures.
+    - Official/private shares are measurement summaries and may be unstable when net flows offset.

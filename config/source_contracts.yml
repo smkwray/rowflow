@@ -1,0 +1,144 @@
+sibling_artifacts:
+  buycurve:
+    root_env: BUYCURVE_ROOT
+    default_root: ../buycurve
+    role: Treasury issuance composition, maturity, buyer mix, and TIC bridge context.
+    artifacts:
+      monthly_issuance_maturity_panel:
+        relative_path: data/clean/monthly_issuance_maturity_panel.csv
+        destination: data/imported/buycurve/monthly_issuance_maturity_panel.csv
+        required: true
+        expected_columns_any:
+          - [month, bill_share, wam_years]
+          - [date, bill_share, weighted_average_maturity_years]
+        notes: Canonical bill-share/WAM source before any new Treasury issuance transformation.
+      monthly_buyer_shares:
+        relative_path: data/clean/monthly_buyer_shares.csv
+        destination: data/imported/buycurve/monthly_buyer_shares.csv
+        required: false
+        notes: Initial auction allocation sidecar only; not final holder evidence.
+      tic_bridge_context:
+        relative_path: output/summaries/tic_bridge_context.csv
+        destination: data/imported/buycurve/tic_bridge_context.csv
+        required: false
+        notes: Use for continuity checks if present.
+
+  tdcladder:
+    root_env: TDCLADDER_ROOT
+    default_root: ../tdcladder
+    role: Maturity/liquidity ladder context.
+    artifacts:
+      ladder_interpretation_summary:
+        relative_path: output/tables/ladder_interpretation_summary.csv
+        destination: data/imported/tdcladder/ladder_interpretation_summary.csv
+        required: false
+        notes: Diagnostic maturity/liquidity weights; measurement assumptions, not structural facts.
+      quarterly_tdc_comparison_panel:
+        relative_path: data/clean/quarterly_tdc_comparison_panel.csv
+        destination: data/imported/tdcladder/quarterly_tdc_comparison_panel.csv
+        required: false
+        notes: Useful for quarterly TDC-aligned comparison.
+
+  liqsub:
+    root_env: LIQSUB_ROOT
+    default_root: ../liqsub
+    role: "Domestic liquidity diagnostics: deposits, MMFs, ON RRP, reserves, TGA, and plumbing context."
+    artifacts:
+      monthly_liquidity_substitution_panel:
+        relative_path: data/clean/monthly_liquidity_substitution_panel.csv
+        destination: data/imported/liqsub/monthly_liquidity_substitution_panel.csv
+        required: true
+        expected_columns_any:
+          - [month, tga_usd_millions, reserves_usd_millions, deposits_usd_millions, mmf_assets_usd_millions, on_rrp_usd_millions]
+          - [date, tga, reserves, deposits, mmf_assets, on_rrp]
+        notes: Preferred monthly diagnostics source before direct H.4.1/H.8/OFR/FRED pulls.
+
+  bankcap:
+    root_env: BANKCAP_ROOT
+    default_root: ../bankcap
+    role: H.8 bank-group mechanism context.
+    artifacts:
+      h8_mechanism_summary:
+        relative_path: output/reports/h8_mechanism_summary.json
+        destination: data/imported/bankcap/h8_mechanism_summary.json
+        required: false
+        notes: Descriptive bank-group mechanism sidecar.
+      h8_analysis_panel:
+        relative_path: data/derived/h8_analysis_panel.csv
+        destination: data/imported/bankcap/h8_analysis_panel.csv
+        required: false
+        notes: Optional H.8 group-level panel if present.
+
+  tdcest:
+    root_env: TDCEST_ROOT
+    default_root: ../tdcest
+    role: Canonical quarterly TDC anchors.
+    artifacts:
+      tdc_estimates:
+        relative_path: data/processed/tdc_estimates.csv
+        destination: data/imported/tdcest/tdc_estimates.csv
+        required: true
+        expected_columns_any:
+          - [quarter, tdc_bank_only_qoq_usd_millions]
+          - [date, tdc_tier2_bank_only_qoq]
+        notes: Preferred quarterly TDC anchor.
+      tdc_components:
+        relative_path: data/processed/tdc_components.csv
+        destination: data/imported/tdcest/tdc_components.csv
+        required: false
+        notes: Component detail for diagnostics.
+
+  tdcpass:
+    root_env: TDCPASS_ROOT
+    default_root: ../tdcpass
+    role: Pass-through and strict-vs-broad deposit comparison context.
+    artifacts:
+      quarterly_panel:
+        relative_path: data/derived/quarterly_panel.csv
+        destination: data/imported/tdcpass/quarterly_panel.csv
+        required: false
+        notes: Optional pass-through context. Keep causal claims out of rowflow.
+
+  tdcatlas:
+    root_env: TDCATLAS_ROOT
+    default_root: ../tdcatlas
+    role: Episode framing and dashboard synthesis.
+    artifacts:
+      monthly_episode_panel:
+        relative_path: data/derived/monthly_episode_panel.csv
+        destination: data/imported/tdcatlas/monthly_episode_panel.csv
+        required: false
+        notes: Optional episode labels for descriptive figures.
+
+primary_sources_after_sibling_reuse:
+  tic_slt_table3:
+    source_family: Treasury International Capital System
+    landing_page: https://home.treasury.gov/data/treasury-international-capital-tic-system
+    documentation_page: https://home.treasury.gov/data/treasury-international-capital-tic-system-home-page/tic-forms-instructions/securities-a-us-transactions-with-foreign-residents-in-long-term-securities
+    table_url: https://ticdata.treasury.gov/resource-center/data-chart-center/tic/Documents/slt_table3.txt
+    role: Monthly U.S. Treasury securities held by foreign residents, including net U.S. sales to foreigners.
+    sign_convention: Positive net U.S. sales to foreigners denotes an increase in foreign position.
+    sector_rows:
+      foreign_official: 99990
+      foreign_non_official: 99991
+      grand_total: 99996
+      international_regional_organizations: 79995
+    columns:
+      total_treasury_net: for_treas_net
+      long_term_treasury_net: for_lt_treas_net
+      short_term_treasury_net: for_st_treas_net
+    known_breaks:
+      - February 2023 begins expanded SLT-based transaction files; earlier S-form files need separate handling.
+    use_rule: Use only after buycurve/TIC bridge outputs do not satisfy the required monthly official/private panel.
+
+  z1_row_official_private:
+    source_family: Federal Reserve Z.1 / FRED mirror
+    z1_landing_page: https://www.federalreserve.gov/releases/z1/
+    fred_series:
+      official_level: BOGZ1FL263061130Q
+      official_transactions_saar: BOGZ1FA263061130Q
+      private_level: BOGZ1FL263061145Q
+      private_transactions_saar: BOGZ1FA263061145Q
+    role: Quarterly rest-of-world official/private Treasury holdings and transactions comparison panel.
+    input_units: Millions of U.S. dollars; transaction series are seasonally adjusted annual rate unless using an alternate NIPA/Z.1 extract.
+    transform: Divide SAAR transactions by 4 for quarter-flow comparison.

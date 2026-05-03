@@ -1,0 +1,56 @@
+project:
+  name: rowflow
+  version: 0.1.0
+  status: starter-skeleton
+  public_description: >-
+    Descriptive foreign official/private rest-of-world Treasury absorption
+    infrastructure for the Treasury Deposit Channel project family.
+  tdc_definition:
+    canonical_upstream: tdcest
+    canonical_url: https://github.com/smkwray/tdcest
+    wording: >-
+      TDC means Treasury Deposit Channel, using tdcest as the canonical
+      quarterly upstream anchor.
+
+claim_boundary:
+  allowed:
+    - descriptive accounting of official/private foreign Treasury absorption
+    - comparison of TIC monthly flows with Z.1 quarterly official/private series
+    - diagnostic joins to maturity composition, TGA, reserves, deposits, MMFs, ON RRP, and TDC anchors
+  forbidden:
+    - causal domestic liquidity effects without a separate identification design
+    - country-level beneficial-owner claims beyond source definitions
+    - treating TIC and Z.1 as interchangeable measurements
+    - duplicating sibling transformations when reusable outputs exist
+  required_report_phrase: >-
+    This report is descriptive accounting only and does not identify causal domestic liquidity effects.
+
+paths:
+  data_raw: data/raw
+  data_imported: data/imported
+  data_interim: data/interim
+  data_derived: data/derived
+  output: output
+  figures: output/figures
+  reports: output/reports
+  manifests: output/manifests
+
+frequencies:
+  tic_headline: monthly
+  z1_comparison: quarterly
+  rowflow_panel: monthly-with-quarterly-sidecars
+
+units:
+  flow_unit: usd_millions
+  share_unit: decimal_share
+  z1_transaction_input_default: seasonally_adjusted_annual_rate
+  z1_transaction_output: quarterly_flow_usd_millions
+
+sibling_reuse_order:
+  - buycurve
+  - tdcladder
+  - liqsub
+  - bankcap
+  - tdcest
+  - tdcpass
+  - tdcatlas

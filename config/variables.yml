@@ -1,0 +1,49 @@
+canonical_variables:
+  tic_row_panel:
+    month: Calendar month in YYYY-MM format.
+    quarter: Calendar quarter in YYYYQ# format, derived from month.
+    tic_foreign_official_treasury_net_flow_usd_millions: Foreign official Treasury net flow / absorption, in USD millions, source sign convention preserved.
+    tic_foreign_private_treasury_net_flow_usd_millions: Foreign private Treasury net flow / absorption, in USD millions, source sign convention preserved.
+    tic_foreign_total_treasury_net_flow_usd_millions: Official plus private net flow, in USD millions.
+    tic_foreign_official_share_of_net_flow: Official share of total net flow; can fall outside [0,1] when official/private signs differ.
+    tic_row_absorption_leader: official_led, private_led, mixed, or net_selling_or_no_absorption.
+  z1_row_panel:
+    quarter: Calendar quarter in YYYYQ# format.
+    z1_foreign_official_treasury_transaction_q_usd_millions: Official ROW Treasury transaction converted to quarterly USD millions.
+    z1_foreign_private_treasury_transaction_q_usd_millions: Private ROW Treasury transaction converted to quarterly USD millions.
+    z1_foreign_total_treasury_transaction_q_usd_millions: Official plus private quarterly transaction.
+    z1_foreign_official_treasury_level_usd_millions: Official ROW Treasury level, if available.
+    z1_foreign_private_treasury_level_usd_millions: Private ROW Treasury level, if available.
+  diagnostics:
+    bill_share: Monthly Treasury bill share diagnostic from buycurve/tdcladder.
+    wam_years: Weighted-average maturity in years from buycurve/tdcladder.
+    tga_usd_millions: Treasury General Account diagnostic.
+    reserves_usd_millions: Reserve balances diagnostic.
+    deposits_usd_millions: Deposit diagnostic.
+    mmf_assets_usd_millions: Money-market fund asset diagnostic.
+    on_rrp_usd_millions: Overnight reverse repo diagnostic.
+    tdc_bank_only_qoq_usd_millions: Canonical or selected TDC anchor from tdcest.
+
+aliases:
+  tic_official_flow:
+    - foreign_official_treasury_net_flow_usd_millions
+    - official_treasury_net_flow_usd_millions
+    - foreign_official_treasury_purchases_usd_millions
+    - official_net_purchases_usd_millions
+  tic_private_flow:
+    - foreign_private_treasury_net_flow_usd_millions
+    - private_treasury_net_flow_usd_millions
+    - foreign_private_treasury_purchases_usd_millions
+    - private_net_purchases_usd_millions
+  z1_official_transactions_saar:
+    - z1_foreign_official_treasury_transactions_saar_usd_millions
+    - BOGZ1FA263061130Q
+  z1_private_transactions_saar:
+    - z1_foreign_private_treasury_transactions_saar_usd_millions
+    - BOGZ1FA263061145Q
+  z1_official_level:
+    - z1_foreign_official_treasury_level_usd_millions
+    - BOGZ1FL263061130Q
+  z1_private_level:
+    - z1_foreign_private_treasury_level_usd_millions
+    - BOGZ1FL263061145Q

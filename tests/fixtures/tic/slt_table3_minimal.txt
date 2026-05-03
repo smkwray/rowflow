@@ -1,0 +1,5 @@
+country	country_code	date	for_treas_pos	for_treas_net	for_lt_treas_pos	for_lt_treas_net	for_lt_treas_valchg	for_st_treas_pos	for_st_treas_net
+Of Which: Foreign Official	99990	2024-01	1000	10	800	6	0	200	4
+Of Which: Foreign Official	99990	2024-02	995	-5	790	-7	0	205	2
+Of Which: Foreign Non-Official	99991	2024-01	1500	25	1200	20	0	300	5
+Of Which: Foreign Non-Official	99991	2024-02	1530	30	1215	15	0	315	15

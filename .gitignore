@@ -1,46 +1,43 @@
-# Local orchestration and non-public planning
+# Local handoff and planning notes.
 do/
 
-# Internal docs not for the repo
-docs/
-
-# Environment
+# Local environments and secrets
 .env
-.envrc
+.env.*
+.venv/
+venv/
+.python-version
 
-# Data and generated outputs
-/data/raw/*
-/data/imported/*
-/data/derived/*
-/output/*
-!/data/raw/.gitkeep
-!/data/imported/.gitkeep
-!/data/derived/.gitkeep
-!/output/reports/
-!/output/reports/.gitkeep
-!/output/figures/
-!/output/figures/.gitkeep
-
-# Plans
-*.plan.md
-plan.md
-plans/
-
-# Python artifacts and caches
+# Python caches/builds
 __pycache__/
-*.pyc
-*.pyo
+*.py[cod]
 .pytest_cache/
 .ruff_cache/
 .mypy_cache/
-*.egg-info/
-dist/
 build/
-.venv/
-venv/
-env/
+dist/
+*.egg-info/
 
-# Editor / OS
+# Imported/raw/derived/generated data stay out of git.
+data/raw/**
+data/imported/**
+data/interim/**
+data/derived/**
+output/**
+
+!data/raw/.gitkeep
+!data/imported/.gitkeep
+!data/interim/.gitkeep
+!data/derived/.gitkeep
+!output/.gitkeep
+!output/figures/
+!output/figures/.gitkeep
+!output/reports/
+!output/reports/.gitkeep
+!output/manifests/
+!output/manifests/.gitkeep
+
+# OS/editor noise
 .DS_Store
-.vscode/
 .idea/
+.vscode/
