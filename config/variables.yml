@@ -4,7 +4,11 @@ canonical_variables:
     quarter: Calendar quarter in YYYYQ# format, derived from month.
     tic_foreign_official_treasury_net_flow_usd_millions: Foreign official Treasury net flow / absorption, in USD millions, source sign convention preserved.
     tic_foreign_private_treasury_net_flow_usd_millions: Foreign private Treasury net flow / absorption, in USD millions, source sign convention preserved.
+    tic_international_regional_organizations_treasury_net_flow_usd_millions: International and regional organization Treasury net flow sidecar, in USD millions, source sign convention preserved.
     tic_foreign_total_treasury_net_flow_usd_millions: Official plus private net flow, in USD millions.
+    tic_foreign_total_with_iro_treasury_net_flow_usd_millions: Official plus private plus international/regional organization net flow, in USD millions.
+    tic_source_regime: Source layout label, such as legacy_s_form_pre_2023 or expanded_slt_2023_on.
+    tic_treasury_flow_scope: Security scope label, such as long_term_treasury_bonds_notes or total_treasuries.
     tic_foreign_official_share_of_net_flow: Official share of total net flow; can fall outside [0,1] when official/private signs differ.
     tic_row_absorption_leader: official_led, private_led, mixed, or net_selling_or_no_absorption.
   z1_row_panel:
@@ -41,10 +45,12 @@ aliases:
   z1_official_transactions_saar:
     - z1_foreign_official_treasury_transactions_saar_usd_millions
     - BOGZ1FA263061130Q
+  z1_official_transactions_quarterly:
     - BOGZ1FU263061130Q
   z1_private_transactions_saar:
     - z1_foreign_private_treasury_transactions_saar_usd_millions
     - BOGZ1FA263061145Q
+  z1_private_transactions_quarterly:
     - BOGZ1FU263061145Q
   z1_official_level:
     - z1_foreign_official_treasury_level_usd_millions

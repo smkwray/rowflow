@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import urllib.request
 from collections.abc import Iterable
 from pathlib import Path
 
@@ -10,6 +11,21 @@ import pandas as pd
 
 def ensure_parent(path: Path) -> None:
     Path(path).parent.mkdir(parents=True, exist_ok=True)
+
+
+def read_text_source(path_or_url: str | Path) -> str:
+    value = str(path_or_url)
+    if value.startswith(("http://", "https://")):
+        with urllib.request.urlopen(value, timeout=60) as response:  # noqa: S310 - configured public data URLs only.
+            return response.read().decode("utf-8-sig", errors="replace")
+    return Path(path_or_url).read_text(encoding="utf-8-sig")
+
+
+def download_text(url: str, output_path: Path) -> Path:
+    text = read_text_source(url)
+    ensure_parent(Path(output_path))
+    Path(output_path).write_text(text, encoding="utf-8")
+    return Path(output_path)
 
 
 def read_csv_flexible(path: Path) -> pd.DataFrame:

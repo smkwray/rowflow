@@ -5,13 +5,16 @@ from pathlib import Path
 from conftest import fixture_path
 
 from rowflow.panels import (
+    TIC_IRO,
     TIC_TOTAL,
+    TIC_TOTAL_WITH_IRO,
     Z1_TOTAL_LEVEL_CHANGE_Q,
     Z1_TOTAL_Q,
     build_rowflow_panel,
     build_tic_row_panel,
     build_z1_row_panel,
     build_z1_row_panel_from_fred_levels,
+    combine_tic_row_panels,
 )
 
 
@@ -29,7 +32,30 @@ def test_build_tic_row_panel_from_slt_table3_fixture(tmp_path: Path) -> None:
     panel = build_tic_row_panel(fixture_path("tic", "slt_table3_minimal.txt"), tmp_path / "tic_slt.csv")
     assert len(panel) == 2
     assert panel.loc[0, TIC_TOTAL] == 35
+    assert panel.loc[0, TIC_IRO] == 3
+    assert panel.loc[0, TIC_TOTAL_WITH_IRO] == 38
+    assert panel.loc[0, "tic_source_regime"] == "expanded_slt_2023_on"
     assert "tic_foreign_official_short_treasury_net_flow_usd_millions" in panel.columns
+
+
+def test_build_tic_row_panel_from_legacy_tressect_fixture(tmp_path: Path) -> None:
+    panel = build_tic_row_panel(fixture_path("tic", "tressect_minimal.txt"), tmp_path / "tic_legacy.csv")
+    assert len(panel) == 2
+    assert panel.loc[0, "month"] == "2022-12"
+    assert panel.loc[0, TIC_TOTAL] == 20245
+    assert panel.loc[0, TIC_IRO] == -267
+    assert panel.loc[0, TIC_TOTAL_WITH_IRO] == 19978
+    assert panel.loc[0, "tic_source_regime"] == "legacy_s_form_pre_2023"
+    assert panel.loc[0, "tic_treasury_flow_scope"] == "long_term_treasury_bonds_notes"
+
+
+def test_combine_tic_row_panels_prefers_later_inputs(tmp_path: Path) -> None:
+    legacy = build_tic_row_panel(fixture_path("tic", "tressect_minimal.txt"), tmp_path / "legacy.csv")
+    current = build_tic_row_panel(fixture_path("tic", "slt_table3_minimal.txt"), tmp_path / "current.csv")
+    assert len(legacy) == 2
+    assert len(current) == 2
+    combined = combine_tic_row_panels([tmp_path / "legacy.csv", tmp_path / "current.csv"], tmp_path / "combined.csv")
+    assert list(combined["month"]) == ["2022-12", "2023-01", "2024-01", "2024-02"]
 
 
 def test_build_z1_row_panel_converts_saar_to_quarterly(tmp_path: Path) -> None:
@@ -37,6 +63,16 @@ def test_build_z1_row_panel_converts_saar_to_quarterly(tmp_path: Path) -> None:
     assert len(panel) == 2
     assert panel.loc[0, Z1_TOTAL_Q] == 75
     assert panel.loc[1, "z1_row_absorption_leader"] == "private_led"
+
+
+def test_build_z1_row_panel_uses_fred_fu_transactions_without_saar_division(tmp_path: Path) -> None:
+    panel = build_z1_row_panel(
+        fixture_path("z1", "z1_row_official_private_fred_transactions.csv"),
+        tmp_path / "z1_fu.csv",
+    )
+    assert len(panel) == 2
+    assert panel.loc[0, Z1_TOTAL_Q] == 300
+    assert panel.loc[1, Z1_TOTAL_Q] == 300
 
 
 def test_build_z1_row_panel_from_fred_levels_labels_level_changes(tmp_path: Path) -> None:

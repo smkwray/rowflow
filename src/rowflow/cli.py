@@ -5,12 +5,15 @@ from pathlib import Path
 
 from rowflow.config import config_dir_from_root, validate_config_dir
 from rowflow.contracts import copy_sibling_outputs, validate_sibling_sources
+from rowflow.io import download_text
 from rowflow.manifests import write_output_manifest
 from rowflow.panels import (
     build_rowflow_panel,
     build_tic_row_panel,
     build_z1_row_panel,
     build_z1_row_panel_from_fred_levels,
+    combine_tic_row_panels,
+    download_z1_fred_transactions,
 )
 from rowflow.reports import write_rowflow_report
 from rowflow.validation import has_errors, print_messages, validate_rowflow_package
@@ -54,10 +57,21 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--input", required=True, help="Input TIC CSV/TXT file.")
     p.add_argument("--output", required=True, help="Output CSV path.")
 
+    p = sub.add_parser("combine-tic-row-panels", help="Combine monthly TIC panels, preferring later inputs on overlap.")
+    p.add_argument("--input", action="append", required=True, help="Input built TIC panel. May be repeated.")
+    p.add_argument("--output", required=True, help="Output CSV path.")
+
+    p = sub.add_parser("download-text-source", help="Download a public text/CSV source to a local ignored path.")
+    p.add_argument("--url", required=True, help="Source URL.")
+    p.add_argument("--output", required=True, help="Output path.")
+
     p = sub.add_parser("build-z1-row-panel", help="Build quarterly Z.1 official/private ROW comparison panel.")
     p.add_argument("--input", required=True, help="Input Z.1 CSV file.")
     p.add_argument("--output", required=True, help="Output CSV path.")
     p.add_argument("--transactions-are-quarterly", action="store_true", help="Do not divide transaction input values by four.")
+
+    p = sub.add_parser("download-z1-fred-transactions", help="Download FRED Z.1 official/private transaction graph CSVs.")
+    p.add_argument("--output", required=True, help="Output merged CSV path.")
 
     p = sub.add_parser("build-z1-row-panel-from-fred-levels", help="Build quarterly Z.1 ROW comparison panel from local FRED level JSONs.")
     p.add_argument("--official-level-json", required=True, help="FRED JSON observations for BOGZ1FL263061130Q.")
@@ -126,12 +140,27 @@ def main(argv: list[str] | None = None) -> int:
             print(f"Wrote {len(panel):,} row(s) to {args.output}")
             return 0
 
+        if args.command == "combine-tic-row-panels":
+            panel = combine_tic_row_panels([Path(value) for value in args.input], Path(args.output))
+            print(f"Wrote {len(panel):,} row(s) to {args.output}")
+            return 0
+
+        if args.command == "download-text-source":
+            output = download_text(args.url, Path(args.output))
+            print(f"Wrote {output}")
+            return 0
+
         if args.command == "build-z1-row-panel":
             panel = build_z1_row_panel(
                 Path(args.input),
                 Path(args.output),
                 transactions_are_saar=not args.transactions_are_quarterly,
             )
+            print(f"Wrote {len(panel):,} row(s) to {args.output}")
+            return 0
+
+        if args.command == "download-z1-fred-transactions":
+            panel = download_z1_fred_transactions(Path(args.output))
             print(f"Wrote {len(panel):,} row(s) to {args.output}")
             return 0
 

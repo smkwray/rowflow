@@ -6,10 +6,12 @@ import pandas as pd
 
 from rowflow.io import ensure_parent, read_csv_flexible
 from rowflow.panels import (
+    TIC_IRO,
     TIC_OFFICIAL,
     TIC_OFFICIAL_SHARE,
     TIC_PRIVATE,
     TIC_TOTAL,
+    TIC_TOTAL_WITH_IRO,
     Z1_TOTAL_LEVEL_CHANGE_Q,
     Z1_TOTAL_Q,
 )
@@ -97,6 +99,10 @@ def write_rowflow_report(
     official_sum = panel[TIC_OFFICIAL].sum() if TIC_OFFICIAL in panel.columns else None
     private_sum = panel[TIC_PRIVATE].sum() if TIC_PRIVATE in panel.columns else None
     total_sum = panel[TIC_TOTAL].sum() if TIC_TOTAL in panel.columns else None
+    iro_sum = panel[TIC_IRO].sum() if TIC_IRO in panel.columns else None
+    total_with_iro_sum = panel[TIC_TOTAL_WITH_IRO].sum() if TIC_TOTAL_WITH_IRO in panel.columns else None
+    source_regimes = sorted(panel["tic_source_regime"].dropna().astype(str).unique()) if "tic_source_regime" in panel.columns else []
+    flow_scopes = sorted(panel["tic_treasury_flow_scope"].dropna().astype(str).unique()) if "tic_treasury_flow_scope" in panel.columns else []
     leader_counts = (
         panel["tic_row_absorption_leader"].value_counts().to_dict()
         if "tic_row_absorption_leader" in panel.columns
@@ -132,13 +138,19 @@ def write_rowflow_report(
         f"- Sum of official TIC flows in panel: {_fmt_number(official_sum)} USD millions",
         f"- Sum of private TIC flows in panel: {_fmt_number(private_sum)} USD millions",
         f"- Sum of total TIC flows in panel: {_fmt_number(total_sum)} USD millions",
+        f"- Sum of IRO TIC flows in panel: {_fmt_number(iro_sum)} USD millions",
+        f"- Sum of TIC flows including IRO sidecar: {_fmt_number(total_with_iro_sum)} USD millions",
+        f"- TIC source regimes: {', '.join(source_regimes) if source_regimes else 'not labeled'}",
+        f"- TIC Treasury flow scopes: {', '.join(flow_scopes) if flow_scopes else 'not labeled'}",
         f"- Z.1 comparison rows supplied: {z1_rows:,}",
         f"- Z.1 comparison measure: {z1_measure}",
         "",
         "## Evidence layers",
         "",
         "- TIC monthly evidence is transaction-flow evidence under the TIC source sign convention.",
-        "- Z.1 quarterly evidence is accounting context. When transaction series are unavailable, the package labels level changes separately from transactions.",
+        "- Pre-2023 TIC legacy evidence covers long-term Treasury bonds and notes; February 2023 forward SLT evidence covers total Treasuries in the expanded file layout.",
+        "- International and regional organizations are carried as a separate TIC sidecar rather than folded into private foreign absorption.",
+        "- Z.1 quarterly evidence is accounting context. The primary real build uses FRED transaction series; when transaction series are unavailable, the package labels level changes separately from transactions.",
         "- Sibling diagnostics from buycurve, liqsub, tdcest, and tdcpass are interpretation sidecars, not causal controls or structural parameters.",
         "",
         "## Official-led versus private-led classification",

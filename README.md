@@ -50,6 +50,14 @@ rowflow build-tic-row-panel \
   --input data/imported/tic/slt_table3.txt \
   --output data/derived/tic_row_monthly.csv
 
+rowflow combine-tic-row-panels \
+  --input data/derived/tic_row_monthly_legacy_tressect.csv \
+  --input data/derived/tic_row_monthly_slt.csv \
+  --output data/derived/tic_row_monthly_real.csv
+
+rowflow download-z1-fred-transactions \
+  --output data/raw/z1/z1_row_official_private_transactions.csv
+
 rowflow build-z1-row-panel \
   --input data/imported/z1/z1_row_official_private.csv \
   --output data/derived/z1_row_quarterly.csv
@@ -84,7 +92,7 @@ For a local real-data backend build with sibling repositories present, run:
 make real-package
 ```
 
-The real-data target uses the project external virtual environment by default. It builds the TIC panel from the reused local TIC cache and uses local Z.1/FRED level observations as explicitly labeled level-change context when transaction extracts are not available.
+The real-data target uses the project external virtual environment by default. It builds the TIC panel from the reused local SLT cache, downloads the public legacy TIC `tressect.txt` bridge for pre-2023 long-term Treasury bonds and notes, downloads public FRED Z.1 `FU` transaction CSVs, and preserves source-regime labels before writing the real package outputs.
 
 ## Source strategy
 

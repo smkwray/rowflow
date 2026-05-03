@@ -14,10 +14,16 @@ schemas:
       - tic_foreign_total_treasury_net_flow_usd_millions
       - tic_foreign_official_share_of_net_flow
       - tic_row_absorption_leader
+    optional_columns:
+      - tic_international_regional_organizations_treasury_net_flow_usd_millions
+      - tic_foreign_total_with_iro_treasury_net_flow_usd_millions
+      - tic_source_regime
+      - tic_treasury_flow_scope
   z1_input_wide:
     required_columns_any:
       - [quarter, z1_foreign_official_treasury_transactions_saar_usd_millions, z1_foreign_private_treasury_transactions_saar_usd_millions]
       - [date, BOGZ1FA263061130Q, BOGZ1FA263061145Q]
+      - [date, BOGZ1FU263061130Q, BOGZ1FU263061145Q]
   z1_row_panel:
     primary_key: [quarter]
     required_columns:
@@ -43,6 +49,9 @@ schemas:
       - on_rrp_usd_millions
       - tdc_bank_only_qoq_usd_millions
       - z1_foreign_total_treasury_transaction_q_usd_millions
+      - tic_international_regional_organizations_treasury_net_flow_usd_millions
+      - tic_source_regime
+      - tic_treasury_flow_scope
 
 report_requirements:
   required_phrases:

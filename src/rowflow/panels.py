@@ -1,15 +1,20 @@
 from __future__ import annotations
 
+import re
+from io import StringIO
 from pathlib import Path
 
 import pandas as pd
 
-from rowflow.io import read_csv_flexible, read_fred_observations_json, write_csv
+from rowflow.io import read_csv_flexible, read_fred_observations_json, read_text_source, write_csv
 from rowflow.periods import month_to_quarter, normalize_month, normalize_quarter
 
 TIC_OFFICIAL = "tic_foreign_official_treasury_net_flow_usd_millions"
 TIC_PRIVATE = "tic_foreign_private_treasury_net_flow_usd_millions"
+TIC_IRO = "tic_international_regional_organizations_treasury_net_flow_usd_millions"
 TIC_TOTAL = "tic_foreign_total_treasury_net_flow_usd_millions"
+TIC_TOTAL_WITH_IRO = "tic_foreign_total_with_iro_treasury_net_flow_usd_millions"
+TIC_SOURCE_TOTAL = "tic_source_total_treasury_net_flow_usd_millions"
 TIC_OFFICIAL_SHARE = "tic_foreign_official_share_of_net_flow"
 TIC_PRIVATE_SHARE = "tic_foreign_private_share_of_net_flow"
 
@@ -59,6 +64,11 @@ Z1_PRIVATE_LEVEL_ALIASES = [
     "z1_foreign_private_treasury_level_usd_millions",
     "BOGZ1FL263061145Q",
 ]
+Z1_FRED_TRANSACTION_SERIES = {
+    "BOGZ1FU263061130Q": "official",
+    "BOGZ1FU263061145Q": "private",
+}
+FRED_GRAPH_CSV_URL = "https://fred.stlouisfed.org/graph/fredgraph.csv?id={series_id}"
 
 
 def _first_existing_column(df: pd.DataFrame, candidates: list[str]) -> str | None:
@@ -96,9 +106,10 @@ def _normalize_tic_from_slt_table3(df: pd.DataFrame) -> pd.DataFrame:
 
     work = df.copy()
     work["country_code"] = pd.to_numeric(work["country_code"], errors="coerce").astype("Int64")
-    work = work[work["country_code"].isin([99990, 99991])].copy()
+    sector_codes = [99990, 99991, 79995]
+    work = work[work["country_code"].isin(sector_codes)].copy()
     if work.empty:
-        raise ValueError("SLT Table 3 input did not contain sector rows 99990/99991")
+        raise ValueError("SLT Table 3 input did not contain sector rows 99990/99991/79995")
 
     metric_columns = ["for_treas_net", "for_lt_treas_net", "for_st_treas_net"]
     for column in metric_columns:
@@ -106,21 +117,64 @@ def _normalize_tic_from_slt_table3(df: pd.DataFrame) -> pd.DataFrame:
             work[column] = _numeric(work[column])
 
     frames: list[pd.DataFrame] = []
-    mapping = {99990: "official", 99991: "private"}
+    mapping = {99990: "official", 99991: "private", 79995: "international_regional_organizations"}
     for code, label in mapping.items():
         subset = work[work["country_code"] == code].copy()
+        if subset.empty:
+            continue
         subset["month"] = normalize_month(subset["date"])
-        rename = {"for_treas_net": f"tic_foreign_{label}_treasury_net_flow_usd_millions"}
+        if label == "international_regional_organizations":
+            prefix = "tic_international_regional_organizations"
+        else:
+            prefix = f"tic_foreign_{label}"
+        rename = {"for_treas_net": f"{prefix}_treasury_net_flow_usd_millions"}
         if "for_lt_treas_net" in subset.columns:
-            rename["for_lt_treas_net"] = f"tic_foreign_{label}_long_treasury_net_flow_usd_millions"
+            rename["for_lt_treas_net"] = f"{prefix}_long_treasury_net_flow_usd_millions"
         if "for_st_treas_net" in subset.columns:
-            rename["for_st_treas_net"] = f"tic_foreign_{label}_short_treasury_net_flow_usd_millions"
+            rename["for_st_treas_net"] = f"{prefix}_short_treasury_net_flow_usd_millions"
         keep = ["month", *rename]
         frames.append(subset[keep].rename(columns=rename))
 
+    if not frames:
+        raise ValueError("SLT Table 3 input did not contain usable official/private/IRO sector rows")
     out = frames[0]
     for frame in frames[1:]:
         out = out.merge(frame, on="month", how="outer")
+    out["tic_source_regime"] = "expanded_slt_2023_on"
+    out["tic_treasury_flow_scope"] = "total_treasuries"
+    return out
+
+
+def _normalize_tic_from_tressect_text(text: str) -> pd.DataFrame:
+    rows: list[dict[str, object]] = []
+    row_pattern = re.compile(
+        r"^\s*(?P<month>\d{4}-\d{2})\s+"
+        r"(?P<total>-?[\d,]+)\s+"
+        r"(?P<official>-?[\d,]+)\s+"
+        r"(?P<private>-?[\d,]+)\s+"
+        r"(?P<iro>-?[\d,]+)\s*$"
+    )
+    for line in text.splitlines():
+        match = row_pattern.match(line)
+        if not match:
+            continue
+        rows.append(
+            {
+                "month": match.group("month"),
+                TIC_SOURCE_TOTAL: match.group("total"),
+                TIC_OFFICIAL: match.group("official"),
+                TIC_PRIVATE: match.group("private"),
+                TIC_IRO: match.group("iro"),
+                "tic_source_regime": "legacy_s_form_pre_2023",
+                "tic_treasury_flow_scope": "long_term_treasury_bonds_notes",
+            }
+        )
+    if not rows:
+        raise ValueError("Legacy TIC tressect input contained no monthly sector rows")
+    out = pd.DataFrame(rows)
+    for column in [TIC_SOURCE_TOTAL, TIC_OFFICIAL, TIC_PRIVATE, TIC_IRO]:
+        out[column] = _numeric(out[column].astype(str).str.replace(",", "", regex=False))
+    out["month"] = normalize_month(out["month"])
     return out
 
 
@@ -142,28 +196,47 @@ def _normalize_tic_wide(df: pd.DataFrame) -> pd.DataFrame:
         }
     )
     for optional in (
+        TIC_IRO,
+        TIC_TOTAL_WITH_IRO,
+        TIC_SOURCE_TOTAL,
+        "tic_source_regime",
+        "tic_treasury_flow_scope",
         "tic_foreign_official_long_treasury_net_flow_usd_millions",
         "tic_foreign_private_long_treasury_net_flow_usd_millions",
+        "tic_international_regional_organizations_long_treasury_net_flow_usd_millions",
         "tic_foreign_official_short_treasury_net_flow_usd_millions",
         "tic_foreign_private_short_treasury_net_flow_usd_millions",
+        "tic_international_regional_organizations_short_treasury_net_flow_usd_millions",
     ):
         if optional in work.columns:
-            out[optional] = _numeric(work[optional])
+            if optional in {"tic_source_regime", "tic_treasury_flow_scope"}:
+                out[optional] = work[optional]
+            else:
+                out[optional] = _numeric(work[optional])
     return out
 
 
 def build_tic_row_panel(input_path: Path, output_path: Path | None = None) -> pd.DataFrame:
     """Build the monthly TIC official/private ROW Treasury absorption panel."""
-    df = read_csv_flexible(Path(input_path))
-    if {"country_code", "date", "for_treas_net"}.issubset(df.columns):
-        out = _normalize_tic_from_slt_table3(df)
+    text = read_text_source(input_path)
+    normalized_text = text.upper().replace("&", "AND")
+    if "INTERNATIONAL AND REGIONAL ORGANIZATIONS" in normalized_text and "FOREIGN OFFICIAL INSTITUTIONS" in normalized_text:
+        out = _normalize_tic_from_tressect_text(text)
     else:
-        out = _normalize_tic_wide(df)
+        df = read_csv_flexible(Path(input_path))
+        if {"country_code", "date", "for_treas_net"}.issubset(df.columns):
+            out = _normalize_tic_from_slt_table3(df)
+        else:
+            out = _normalize_tic_wide(df)
 
     out[TIC_OFFICIAL] = _numeric(out[TIC_OFFICIAL])
     out[TIC_PRIVATE] = _numeric(out[TIC_PRIVATE])
+    if TIC_IRO in out.columns:
+        out[TIC_IRO] = _numeric(out[TIC_IRO])
     out = out.dropna(subset=[TIC_OFFICIAL, TIC_PRIVATE], how="all").copy()
     out[TIC_TOTAL] = out[TIC_OFFICIAL] + out[TIC_PRIVATE]
+    if TIC_IRO in out.columns:
+        out[TIC_TOTAL_WITH_IRO] = out[TIC_TOTAL] + out[TIC_IRO].fillna(0)
     out[TIC_OFFICIAL_SHARE] = _safe_share(out[TIC_OFFICIAL], out[TIC_TOTAL])
     out[TIC_PRIVATE_SHARE] = _safe_share(out[TIC_PRIVATE], out[TIC_TOTAL])
     out["quarter"] = month_to_quarter(out["month"])
@@ -177,6 +250,7 @@ def build_tic_row_panel(input_path: Path, output_path: Path | None = None) -> pd
         "quarter",
         TIC_OFFICIAL,
         TIC_PRIVATE,
+        *( [TIC_IRO, TIC_TOTAL_WITH_IRO] if TIC_IRO in out.columns else [] ),
         TIC_TOTAL,
         TIC_OFFICIAL_SHARE,
         TIC_PRIVATE_SHARE,
@@ -187,6 +261,26 @@ def build_tic_row_panel(input_path: Path, output_path: Path | None = None) -> pd
     if output_path is not None:
         write_csv(out, Path(output_path))
     return out
+
+
+def combine_tic_row_panels(input_paths: list[Path], output_path: Path | None = None) -> pd.DataFrame:
+    """Combine monthly TIC panels, preferring later inputs for overlapping months."""
+    frames = []
+    for priority, input_path in enumerate(input_paths):
+        frame = read_csv_flexible(Path(input_path)).copy()
+        if "month" not in frame.columns:
+            raise ValueError(f"TIC panel does not include month: {input_path}")
+        frame["month"] = normalize_month(frame["month"])
+        frame["_rowflow_source_priority"] = priority
+        frames.append(frame)
+    if not frames:
+        raise ValueError("At least one TIC panel input is required")
+    combined = pd.concat(frames, ignore_index=True, sort=False)
+    combined = combined.sort_values(["month", "_rowflow_source_priority"]).drop_duplicates(subset=["month"], keep="last")
+    combined = combined.drop(columns=["_rowflow_source_priority"]).sort_values("month").reset_index(drop=True)
+    if output_path is not None:
+        write_csv(combined, Path(output_path))
+    return combined
 
 
 def build_z1_row_panel(
@@ -240,6 +334,26 @@ def build_z1_row_panel(
     out = out.sort_values("quarter").reset_index(drop=True)
     if output_path is not None:
         write_csv(out, Path(output_path))
+    return out
+
+
+def download_z1_fred_transactions(output_path: Path, series_ids: list[str] | None = None) -> pd.DataFrame:
+    """Download and merge public FRED graph CSVs for Z.1 transaction series."""
+    selected = series_ids or list(Z1_FRED_TRANSACTION_SERIES)
+    frames = []
+    for series_id in selected:
+        url = FRED_GRAPH_CSV_URL.format(series_id=series_id)
+        frame = pd.read_csv(StringIO(read_text_source(url)))
+        if "observation_date" in frame.columns:
+            frame = frame.rename(columns={"observation_date": "date"})
+        if "date" not in frame.columns or series_id not in frame.columns:
+            raise ValueError(f"FRED graph CSV for {series_id} did not contain date and value columns")
+        frames.append(frame[["date", series_id]])
+    out = frames[0]
+    for frame in frames[1:]:
+        out = out.merge(frame, on="date", how="outer")
+    out = out.sort_values("date").reset_index(drop=True)
+    write_csv(out, Path(output_path))
     return out
 
 

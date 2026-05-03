@@ -147,6 +147,20 @@ primary_sources_after_sibling_reuse:
       - February 2023 begins expanded SLT-based transaction files; earlier S-form files need separate handling.
     use_rule: Use only after buycurve/TIC bridge outputs do not satisfy the required monthly official/private panel.
 
+  tic_legacy_tressect:
+    source_family: Treasury International Capital System
+    table_url: https://ticdata.treasury.gov/resource-center/data-chart-center/tic/Documents/tressect.txt
+    role: Legacy monthly sector split for net purchases of U.S. Treasury bonds and notes.
+    sign_convention: Positive net foreign purchases denotes an increase in foreign position.
+    sector_columns:
+      foreign_official: Foreign Official Institutions
+      foreign_private: Other Foreigners
+      international_regional_organizations: International and Regional Organizations
+    known_breaks:
+      - Legacy file covers long-term Treasury bonds and notes, not the expanded total-Treasury SLT concept.
+      - Use source regime labels before stitching to the February 2023 expanded SLT file.
+    use_rule: Use as a pre-2023 bridge with explicit scope labels and keep international/regional organizations separate from private foreign absorption.
+
   z1_row_official_private:
     source_family: Federal Reserve Z.1 / FRED mirror
     z1_landing_page: https://www.federalreserve.gov/releases/z1/
@@ -157,4 +171,7 @@ primary_sources_after_sibling_reuse:
       private_transactions: BOGZ1FU263061145Q
     role: Quarterly rest-of-world official/private Treasury holdings and transactions comparison panel.
     input_units: Millions of U.S. dollars. Transaction extracts and level extracts must be labeled separately.
+    fred_graph_csv:
+      official_transactions: https://fred.stlouisfed.org/graph/fredgraph.csv?id=BOGZ1FU263061130Q
+      private_transactions: https://fred.stlouisfed.org/graph/fredgraph.csv?id=BOGZ1FU263061145Q
     transform: Use transaction series directly when present. If only level series are available, compute quarter-over-quarter level changes and label them as level-change context.
