@@ -1,8 +1,25 @@
 # rowflow
 
-`rowflow` is a starter package for descriptive rest-of-world Treasury absorption accounting in the Treasury Deposit Channel system. In this project family, **TDC** means the Treasury Deposit Channel as defined upstream by [`smkwray/tdcest`](https://github.com/smkwray/tdcest), the canonical quarterly estimator used as the TDC anchor.
+`rowflow` is a descriptive rest-of-world Treasury absorption accounting package for the Treasury Deposit Channel system. In this project family, **TDC** means the Treasury Deposit Channel as defined upstream by [`smkwray/tdcest`](https://github.com/smkwray/tdcest), the canonical quarterly estimator used as the TDC anchor.
 
-The first package splits foreign Treasury absorption into **foreign official** and **foreign private** components, then joins that split to Treasury maturity composition and domestic liquidity diagnostics. The goal is to clarify *who absorbed Treasury supply*. It is not a causal design for domestic liquidity effects.
+The package splits foreign Treasury absorption into **foreign official**, **foreign private**, and separately tracked international/regional organization components, then joins that split to Treasury maturity composition and domestic liquidity diagnostics. The goal is to clarify *who absorbed Treasury supply*. It is not a causal design for domestic liquidity effects.
+
+## Current result
+
+The current real backend build supports one main interpretation: foreign official institutions remain a large Treasury stock holder base, but recent marginal rest-of-world Treasury absorption is mostly private-led.
+
+Current local real-package outputs:
+
+- `data/derived/tic_row_monthly_real.csv`: 578 monthly rows, `1978-01..2026-02`.
+- `data/derived/z1_row_quarterly_real.csv`: 302 transaction-supported quarters, `1946Q4..2025Q4`, with matched Z.1 level columns for stock-vs-flow figures.
+- `data/derived/rowflow_panel.csv`: 578 monthly rows joining TIC flows, source-regime labels, IRO sidecars, Z.1 transaction context, liquidity diagnostics, and TDC anchors.
+- `output/tables/rowflow_results_summary.csv`: compact results table for paper/deck use.
+- `output/figures/stock_vs_flow.svg`: figure showing official/private Z.1 stock context against recent TIC transaction flows.
+
+Headline recent-window result:
+
+- TIC expanded-SLT window `2023-02..2026-02`: foreign private net Treasury flow is `1,797,270` USD millions, foreign official flow is `289,013` USD millions, and international/regional organizations add a separate `77,485` USD millions sidecar.
+- Z.1 recent transaction window `2023Q1..2025Q4`: foreign private transaction flow is `1,698,504` USD millions and foreign official transaction flow is `147,442` USD millions.
 
 ## Claim boundary
 
@@ -11,6 +28,7 @@ This repo is designed for public-safe descriptive accounting.
 Allowed claims:
 
 - foreign Treasury absorption can be summarized separately for official and private foreign holders;
+- international/regional organizations can be carried as a separate sidecar category;
 - TIC and Z.1 give complementary official/private views with different frequency, source definitions, and revisions;
 - bill share, weighted-average maturity, TGA, reserves, deposits, MMFs, ON RRP, and TDC anchors are diagnostics for interpretation.
 
@@ -19,6 +37,7 @@ Not allowed without a stronger design:
 - causal claims about domestic deposit, reserve, MMF, or yield effects;
 - country-level beneficial-owner claims beyond source definitions;
 - claims that TIC transactions and Z.1 transactions are interchangeable;
+- claims that the pre-2023 TIC long-term bonds-and-notes bridge is identical to the February 2023-forward expanded SLT total-Treasury concept;
 - claims that reused sibling diagnostics are structural parameters.
 
 ## Install
@@ -39,7 +58,7 @@ python -m pytest
 
 ## Command map
 
-These commands are implemented as real CLI entrypoints and can be run against fixture data immediately.
+These commands are implemented as CLI entrypoints and can be run against fixture data immediately.
 
 ```bash
 rowflow validate-config
@@ -61,11 +80,6 @@ rowflow download-z1-fred-transactions \
 rowflow build-z1-row-panel \
   --input data/imported/z1/z1_row_official_private.csv \
   --output data/derived/z1_row_quarterly.csv
-
-rowflow build-z1-row-panel-from-fred-levels \
-  --official-level-json data/imported/fp-tdc/BOGZ1FL263061130Q.observations.json \
-  --private-level-json data/imported/fp-tdc/BOGZ1FL263061145Q.observations.json \
-  --output data/derived/z1_row_quarterly_real.csv
 
 rowflow build-rowflow-panel \
   --tic-panel data/derived/tic_row_monthly.csv \
@@ -119,10 +133,10 @@ rowflow/
   src/rowflow/            # Python package and CLI implementation
   tests/fixtures/         # tiny fixture inputs; no external data required
   data/                   # ignored local raw/imported/derived data folders
-  output/                 # ignored local reports, figures, and manifests
+  output/                 # ignored local reports, figures, tables, manifests, and demos
   do/                     # local handoff/todo notes; ignored by .gitignore
 ```
 
-## First implementation target
+## Backend state
 
-The minimum publishable build is a monthly TIC official/private Treasury-flow panel, a quarterly Z.1 official/private comparison panel, a merged diagnostic panel, and one accounting report with a small figure set showing official-led versus private-led foreign absorption episodes.
+The backend is complete enough for paper/deck support. Remaining work is downstream presentation, paper integration, and any optional episode overlays from sibling projects. The public package should continue to avoid individual-holder identification and causal domestic-liquidity claims unless a separate identification design is added.
