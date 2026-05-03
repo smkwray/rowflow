@@ -1,0 +1,46 @@
+# Local orchestration and non-public planning
+do/
+
+# Internal docs not for the repo
+docs/
+
+# Environment
+.env
+.envrc
+
+# Data and generated outputs
+/data/raw/*
+/data/imported/*
+/data/derived/*
+/output/*
+!/data/raw/.gitkeep
+!/data/imported/.gitkeep
+!/data/derived/.gitkeep
+!/output/reports/
+!/output/reports/.gitkeep
+!/output/figures/
+!/output/figures/.gitkeep
+
+# Plans
+*.plan.md
+plan.md
+plans/
+
+# Python artifacts and caches
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+env/
+
+# Editor / OS
+.DS_Store
+.vscode/
+.idea/
