@@ -47,15 +47,13 @@ TIC_PRIVATE_ALIASES = [
 Z1_OFFICIAL_SAAR_ALIASES = [
     "z1_foreign_official_treasury_transactions_saar_usd_millions",
     "BOGZ1FA263061130Q",
-    "BOGZ1FU263061130Q",
 ]
 Z1_PRIVATE_SAAR_ALIASES = [
     "z1_foreign_private_treasury_transactions_saar_usd_millions",
     "BOGZ1FA263061145Q",
-    "BOGZ1FU263061145Q",
 ]
-Z1_OFFICIAL_Q_ALIASES = [Z1_OFFICIAL_Q, "z1_official_transaction_q_usd_millions"]
-Z1_PRIVATE_Q_ALIASES = [Z1_PRIVATE_Q, "z1_private_transaction_q_usd_millions"]
+Z1_OFFICIAL_Q_ALIASES = [Z1_OFFICIAL_Q, "z1_official_transaction_q_usd_millions", "BOGZ1FU263061130Q"]
+Z1_PRIVATE_Q_ALIASES = [Z1_PRIVATE_Q, "z1_private_transaction_q_usd_millions", "BOGZ1FU263061145Q"]
 Z1_OFFICIAL_LEVEL_ALIASES = [
     "z1_foreign_official_treasury_level_usd_millions",
     "BOGZ1FL263061130Q",
@@ -125,6 +123,8 @@ def _normalize_tic_from_slt_table3(df: pd.DataFrame) -> pd.DataFrame:
         if subset.empty:
             continue
         subset["month"] = normalize_month(subset["date"])
+        if (subset["month"] < "2023-02").any():
+            raise ValueError("Expanded SLT coverage starts in February 2023")
         if label == "international_regional_organizations":
             prefix = "tic_international_regional_organizations"
         else:
@@ -299,18 +299,19 @@ def build_z1_row_panel(
 
     official_q_col = _first_existing_column(work, Z1_OFFICIAL_Q_ALIASES)
     private_q_col = _first_existing_column(work, Z1_PRIVATE_Q_ALIASES)
-    if official_q_col is not None and private_q_col is not None:
-        official_q = _numeric(work[official_q_col])
-        private_q = _numeric(work[private_q_col])
-    else:
-        official_saar_col = _first_existing_column(work, Z1_OFFICIAL_SAAR_ALIASES)
-        private_saar_col = _first_existing_column(work, Z1_PRIVATE_SAAR_ALIASES)
-        if official_saar_col is None or private_saar_col is None:
+    def transaction_column(quarterly_column: str | None, annualized_aliases: list[str]) -> pd.Series:
+        if quarterly_column is not None:
+            return _numeric(work[quarterly_column])
+        column = _first_existing_column(work, annualized_aliases)
+        if column is None:
             raise ValueError("Z.1 input must include official/private transaction columns")
-        uses_native_z1_transaction = official_saar_col.startswith("BOGZ1FU") and private_saar_col.startswith("BOGZ1FU")
-        divisor = 1.0 if uses_native_z1_transaction or not transactions_are_saar else 4.0
-        official_q = _numeric(work[official_saar_col]) / divisor
-        private_q = _numeric(work[private_saar_col]) / divisor
+        # A native FA identifier is always SAAR, independently of an option for
+        # generic user-supplied quarterly columns. FU never enters this branch.
+        divisor = 4.0 if column.startswith("BOGZ1FA") or transactions_are_saar else 1.0
+        return _numeric(work[column]) / divisor
+
+    official_q = transaction_column(official_q_col, Z1_OFFICIAL_SAAR_ALIASES)
+    private_q = transaction_column(private_q_col, Z1_PRIVATE_SAAR_ALIASES)
 
     out = pd.DataFrame(
         {
@@ -431,6 +432,140 @@ def _normalize_diagnostics(input_path: Path) -> pd.DataFrame:
     return out.drop_duplicates(subset=["month"]).sort_values("month")
 
 
+def _normalize_issuance_diagnostics(input_path: Path) -> pd.DataFrame:
+    issuance = read_csv_flexible(input_path)
+    date_column = "month" if "month" in issuance.columns else "date" if "date" in issuance.columns else None
+    if date_column is None:
+        raise ValueError("Issuance diagnostics input must include month or date")
+    work = issuance.copy()
+    work["month"] = normalize_month(work[date_column])
+    accepted = _coalesce_numeric(work, ["accepted_amount_sum", "accepted_amount", "gross_issuance"])
+    offering = _coalesce_numeric(work, ["offering_amount_sum", "offering_amount"])
+    work["_accepted_amount_sum"] = accepted
+    work["_offering_amount_sum"] = offering
+
+    rows: list[dict[str, object]] = []
+    for month, group in work.groupby("month", dropna=False):
+        accepted_total = group["_accepted_amount_sum"].sum()
+        offering_total = group["_offering_amount_sum"].sum()
+        row: dict[str, object] = {
+            "month": month,
+            "gross_issuance_usd_millions": accepted_total / 1_000_000 if pd.notna(accepted_total) else pd.NA,
+            "offering_amount_usd_millions": offering_total / 1_000_000 if pd.notna(offering_total) else pd.NA,
+        }
+        if "bill_share_by_accepted_amount" in group.columns:
+            bill_share = _numeric(group["bill_share_by_accepted_amount"]).dropna()
+            row["bill_share"] = bill_share.iloc[0] if not bill_share.empty else pd.NA
+        if "weighted_maturity_years" in group.columns and group["_accepted_amount_sum"].notna().any():
+            weights = group["_accepted_amount_sum"].fillna(0)
+            if weights.sum() != 0:
+                row["wam_years"] = (_numeric(group["weighted_maturity_years"]) * weights).sum() / weights.sum()
+        rows.append(row)
+    return pd.DataFrame(rows).sort_values("month")
+
+
+def _merge_issuance(panel: pd.DataFrame, issuance: pd.DataFrame) -> pd.DataFrame:
+    merged = panel.merge(issuance, on="month", how="left", suffixes=("", "_issuance"))
+    for column in ["bill_share", "wam_years"]:
+        issuance_column = f"{column}_issuance"
+        if issuance_column not in merged.columns:
+            continue
+        if column in merged.columns:
+            merged[column] = merged[column].fillna(merged[issuance_column])
+            merged = merged.drop(columns=[issuance_column])
+        else:
+            merged = merged.rename(columns={issuance_column: column})
+    return merged
+
+
+def _normalize_debt_denominators(input_path: Path) -> pd.DataFrame:
+    debt = read_csv_flexible(input_path)
+    date_column = "month" if "month" in debt.columns else "record_date" if "record_date" in debt.columns else "date" if "date" in debt.columns else None
+    if date_column is None:
+        raise ValueError("Debt denominator input must include month, record_date, or date")
+    work = debt.copy()
+    if "security_type_desc" in work.columns:
+        total_marketable = work["security_type_desc"].astype(str).str.lower().eq("total marketable")
+        if total_marketable.any():
+            work = work[total_marketable].copy()
+    marketable_col = _first_existing_column(
+        work,
+        [
+            "marketable_debt_usd_millions",
+            "marketable_debt_held_public_usd_millions",
+            "debt_held_public_mil_amt",
+            "total_mil_amt",
+        ],
+    )
+    if marketable_col is None:
+        raise ValueError("Debt denominator input must include marketable debt or debt-held-public amount")
+    out = pd.DataFrame(
+        {
+            "month": normalize_month(work[date_column]),
+            "marketable_debt_usd_millions": _numeric(work[marketable_col]),
+        }
+    )
+    out = out.dropna(subset=["marketable_debt_usd_millions"]).drop_duplicates(subset=["month"]).sort_values("month")
+    if "marketable_net_issuance_usd_millions" in work.columns:
+        by_month = pd.DataFrame(
+            {
+                "month": normalize_month(work[date_column]),
+                "marketable_net_issuance_usd_millions": _numeric(work["marketable_net_issuance_usd_millions"]),
+            }
+        )
+        out = out.merge(by_month.drop_duplicates(subset=["month"]), on="month", how="left")
+    else:
+        out["marketable_net_issuance_usd_millions"] = out["marketable_debt_usd_millions"].diff()
+    return out.reset_index(drop=True)
+
+
+def _monthly_last_numeric(work: pd.DataFrame, column: str) -> pd.Series:
+    return _numeric(work[column]).groupby(work["month"]).agg(lambda values: values.dropna().iloc[-1] if values.dropna().size else pd.NA)
+
+
+def _monthly_mean_numeric(work: pd.DataFrame, column: str) -> pd.Series:
+    return _numeric(work[column]).groupby(work["month"]).mean()
+
+
+def _normalize_fred_diagnostics(input_path: Path) -> pd.DataFrame:
+    fred = read_csv_flexible(input_path)
+    date_column = "month" if "month" in fred.columns else "date" if "date" in fred.columns else "observation_date" if "observation_date" in fred.columns else None
+    if date_column is None:
+        raise ValueError("FRED diagnostics input must include month, date, or observation_date")
+    work = fred.copy()
+    work["month"] = normalize_month(work[date_column])
+    out = pd.DataFrame({"month": sorted(work["month"].dropna().unique())})
+    mean_columns = {
+        "DGS2": "treasury_2y_yield_pct",
+        "DGS10": "treasury_10y_yield_pct",
+        "DGS30": "treasury_30y_yield_pct",
+        "THREEFYTP10": "term_premium_10y_pct",
+        "VIXCLS": "vix_index",
+        "DTWEXBGS": "broad_dollar_index",
+    }
+    for source_column, output_column in mean_columns.items():
+        if source_column in work.columns:
+            monthly = _monthly_mean_numeric(work, source_column).reset_index(name=output_column)
+            out = out.merge(monthly, on="month", how="left")
+    if "TREAST" in work.columns:
+        monthly = _monthly_last_numeric(work, "TREAST").reset_index(name="fed_treasury_holdings_usd_millions")
+        out = out.merge(monthly, on="month", how="left")
+    return out.drop_duplicates(subset=["month"]).sort_values("month").reset_index(drop=True)
+
+
+def _merge_monthly_sidecar(panel: pd.DataFrame, sidecar: pd.DataFrame) -> pd.DataFrame:
+    merged = panel.merge(sidecar, on="month", how="left", suffixes=("", "_sidecar"))
+    for column in sidecar.columns:
+        if column == "month":
+            continue
+        sidecar_column = f"{column}_sidecar"
+        if sidecar_column not in merged.columns:
+            continue
+        merged[column] = merged[column].fillna(merged[sidecar_column])
+        merged = merged.drop(columns=[sidecar_column])
+    return merged
+
+
 def _normalize_tdc_context(input_path: Path) -> pd.DataFrame:
     tdc = read_csv_flexible(input_path)
     date_column = "quarter" if "quarter" in tdc.columns else "date" if "date" in tdc.columns else None
@@ -468,6 +603,9 @@ def build_rowflow_panel(
     z1_panel_path: Path | None = None,
     diagnostics_path: Path | None = None,
     tdc_context_path: Path | None = None,
+    issuance_diagnostics_path: Path | None = None,
+    debt_denominators_path: Path | None = None,
+    fred_diagnostics_path: Path | list[Path] | None = None,
 ) -> pd.DataFrame:
     """Merge TIC ROW flows with optional quarterly and diagnostic sidecars."""
     panel = read_csv_flexible(Path(tic_panel_path)).copy()
@@ -480,6 +618,20 @@ def build_rowflow_panel(
     if diagnostics_path is not None and Path(diagnostics_path).exists():
         diagnostics = _normalize_diagnostics(Path(diagnostics_path))
         panel = panel.merge(diagnostics, on="month", how="left")
+
+    if issuance_diagnostics_path is not None and Path(issuance_diagnostics_path).exists():
+        issuance = _normalize_issuance_diagnostics(Path(issuance_diagnostics_path))
+        panel = _merge_issuance(panel, issuance)
+
+    if debt_denominators_path is not None and Path(debt_denominators_path).exists():
+        debt = _normalize_debt_denominators(Path(debt_denominators_path))
+        panel = panel.merge(debt, on="month", how="left")
+
+    fred_paths = [] if fred_diagnostics_path is None else fred_diagnostics_path if isinstance(fred_diagnostics_path, list) else [fred_diagnostics_path]
+    for fred_path in fred_paths:
+        if Path(fred_path).exists():
+            fred = _normalize_fred_diagnostics(Path(fred_path))
+            panel = _merge_monthly_sidecar(panel, fred)
 
     if z1_panel_path is not None and Path(z1_panel_path).exists():
         z1 = read_csv_flexible(Path(z1_panel_path)).copy()

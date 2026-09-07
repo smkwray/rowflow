@@ -1,0 +1,81 @@
+# Series IDs and classifications verified against the dated Fed dictionaries.
+# FU is unadjusted quarterly USD millions. No FA/4 substitution is admitted.
+sample_start: 2002Q1
+sample_end: 2025Q4
+frozen_vintage: '2026-03-19'
+bridge_vintage: '2026-06-11'
+pending_vintage: '2026-09-11'
+alfred_series:
+  BOGZ1FU763135265Q: U.S.-chartered depository institutions; large time deposits due to rest of the world; liability
+  BOGZ1FU753135263Q: Foreign banking offices in the U.S.; large time deposits due to rest of the world; liability
+  BOGZ1FR263061105Q: Rest of the world; Treasury securities; asset, revaluation
+ledger_tables:
+  '2026-03-19': fu133
+  '2026-06-11': S2_t_tu
+asset_leaves:
+  - '263011105'
+  - '264016005'
+  - '263020005'
+  - '263030005'
+  - '263034003'
+  - '262051005'
+  - '263069103'
+  - '263061105'
+  - '263061705'
+  - '263062003'
+  - '263063005'
+  - '263069005'
+  - '263092305'
+  - '263064105'
+  - '263092101'
+  - '263064203'
+  - '543141905'
+  - '543151905'
+  - '263070005'
+  - '263090005'
+liability_leaves:
+  - '313011303'
+  - '264116005'
+  - '263130505'
+  - '262151005'
+  - '263169105'
+  - '263163005'
+  - '263168005'
+  - '263169005'
+  - '263192305'
+  - '263140005'
+  - '263150005'
+  - '263170005'
+  - '263190005'
+equity_leaves: ['263164100', '263192101', '313092803']
+totals:
+  assets: '264090005'
+  liabilities: '264190005'
+  equity: '263181105'
+  liabilities_and_equity: '264194005'
+  net_lending: '265000005'
+subtotals:
+  asset_debt: '264022005'
+  liability_debt: '264122005'
+  asset_loans_june: '264041005'
+  liability_loans_march: '264123005'
+  liability_loans_june: '264141005'
+resources:
+  us_current_account: '266000005'
+  capital_transfers_paid: '265440005'
+  nonproduced_acquisitions: '265420005'
+  discrepancy: '267005005'
+deposit_series:
+  currency: {code: '263025003', issuer: monetary_authority, eligibility: excluded_currency}
+  checkable_total: {code: '263027003', issuer: multiple, eligibility: mixed_perimeter}
+  checkable_us_chartered: {code: '763122605', issuer: us_chartered, eligibility: covered_holder_measurement}
+  checkable_fbo: {code: '753122603', issuer: fbo, eligibility: excluded_issuer}
+  checkable_fed_net: {code: '713122605', issuer: monetary_authority, eligibility: excluded_issuer}
+  time_and_savings: {code: '263030005', issuer: multiple, eligibility: mixed_perimeter}
+  time_us_chartered: {code: '763135265', issuer: us_chartered, eligibility: covered_holder_measurement}
+  time_fbo: {code: '753135263', issuer: fbo, eligibility: excluded_issuer}
+  interbank: {code: '264016005', issuer: multiple, eligibility: separate_claim_mapping_required}
+  interbank_us_chartered: {code: '764116005', issuer: us_chartered, eligibility: separate_claim_mapping_required}
+  interbank_fbo: {code: '754116005', issuer: fbo, eligibility: excluded_issuer}
+perimeter_outcome: BOGZ1FL764100005Q
+claim_boundary: Descriptive legal-holder accounting; covered deposits are holder-composition measurements, not an exclusive foreign offset or Treasury funding attribution.

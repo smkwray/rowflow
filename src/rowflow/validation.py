@@ -6,8 +6,17 @@ from pathlib import Path
 import pandas as pd
 
 from rowflow.config import load_all_configs, validate_config_dir
+from rowflow.determinant_report import REQUIRED_DETERMINANT_REPORT_PHRASES
 from rowflow.io import read_csv_flexible
 from rowflow.panels import Z1_TOTAL_LEVEL_CHANGE_Q, Z1_TOTAL_Q
+
+DETERMINANT_REPORT_DISALLOWED_PHRASES = [
+    "final foreign ownership proven",
+    "causes deposits",
+    "causes reserves",
+    "causes mmfs",
+    "causes yields",
+]
 
 
 def print_messages(messages: list[dict[str, str]]) -> None:
@@ -49,6 +58,26 @@ def _validate_report_text(report_path: Path, configs: dict[str, dict]) -> list[d
             messages.append({"level": "error", "check": "report_claim", "message": f"report contains disallowed phrase: {phrase}"})
         else:
             messages.append({"level": "ok", "check": "report_claim", "message": f"report avoids: {phrase}"})
+    return messages
+
+
+def _validate_determinant_report_text(report_path: Path) -> list[dict[str, str]]:
+    messages: list[dict[str, str]] = []
+    text = Path(report_path).read_text(encoding="utf-8").lower()
+    for phrase in REQUIRED_DETERMINANT_REPORT_PHRASES:
+        if phrase.lower() in text:
+            messages.append({"level": "ok", "check": "determinant_report_phrase", "message": f"determinant report includes: {phrase}"})
+        else:
+            messages.append({"level": "error", "check": "determinant_report_phrase", "message": f"determinant report missing: {phrase}"})
+    if "hac_newey_west_lag_" in text:
+        messages.append({"level": "ok", "check": "determinant_inference", "message": "determinant report labels HAC/Newey-West inference"})
+    else:
+        messages.append({"level": "error", "check": "determinant_inference", "message": "determinant report must label inference"})
+    for phrase in DETERMINANT_REPORT_DISALLOWED_PHRASES:
+        if phrase in text:
+            messages.append({"level": "error", "check": "determinant_report_claim", "message": f"determinant report contains disallowed phrase: {phrase}"})
+        else:
+            messages.append({"level": "ok", "check": "determinant_report_claim", "message": f"determinant report avoids: {phrase}"})
     return messages
 
 
@@ -103,6 +132,11 @@ def validate_rowflow_package(
         messages.extend(_validate_report_text(report_path, configs))
     else:
         messages.append({"level": "error" if strict else "warning", "check": "artifact", "message": f"missing report {report_path}"})
+
+    determinant_report_path = report_path.parent / "foreign_absorption_determinants.md"
+    if determinant_report_path.exists():
+        messages.append({"level": "ok", "check": "artifact", "message": f"found determinant report {determinant_report_path}"})
+        messages.extend(_validate_determinant_report_text(determinant_report_path))
 
     manifest_path = Path(manifest_path)
     if manifest_path.exists():

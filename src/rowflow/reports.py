@@ -247,7 +247,7 @@ def write_rowflow_report(
         "## Evidence layers",
         "",
         "- TIC monthly evidence is transaction-flow evidence under the TIC source sign convention.",
-        "- Pre-2023 TIC legacy evidence covers long-term Treasury bonds and notes; February 2023 forward SLT evidence covers total Treasuries in the expanded file layout.",
+        "- Pre-2023 TIC legacy evidence covers long-term Treasury bonds and notes; from February 2023 the Treasury total combines reported SLT notes/bonds transactions with bills estimated from BL2 position changes.",
         "- International and regional organizations are carried as a separate TIC sidecar rather than folded into private foreign absorption.",
         "- Z.1 quarterly evidence is accounting context. The primary real build uses FRED transaction series; when transaction series are unavailable, the package labels level changes separately from transactions.",
         "- Sibling diagnostics from buycurve, liqsub, tdcest, and tdcpass are interpretation sidecars, not causal controls or structural parameters.",

@@ -43,3 +43,19 @@ Reuse these sibling panels before pulling raw data:
 - `tdcest/data/processed/tdc_estimates.csv` for quarterly TDC anchors.
 - `tdcladder`, `bankcap`, `tdcpass`, and `tdcatlas` sidecars when present.
 - A local FRED/Z.1 level cache from another project can be used as an optional accelerator for official/private Z.1 level context, but only with level-change labels.
+
+## Determinant layer sources
+
+The determinant layer starts from the built `rowflow_panel.csv`, not from a new raw-data scrape. It preserves `tic_source_regime` and `tic_treasury_flow_scope` so the pre-2023 legacy long-term bridge is not pooled as the same measurement regime as the February 2023-forward expanded SLT total-Treasury data.
+
+The first-pass determinant panel standardizes only variables already present in `rowflow_panel.csv`. Gross issuance is curated from `buycurve` accepted auction amounts and reported in USD millions. Optional qrawatch FRED core data add monthly Treasury yield, Kim-Wright term-premium, VIX, and Fed Treasury holdings sidecars when available. The broad-dollar control uses the public FRED graph CSV for `DTWEXBGS`, the nominal broad U.S. dollar index for goods and services. Missing candidate variables are recorded in `output/tables/determinant_panel_missingness.csv` rather than silently invented.
+
+MSPD Table 1 from FiscalData is reused through `qrawatch` when available. `rowflow` uses the `Total Marketable` row to carry `marketable_debt_usd_millions` as marketable debt held by public and computes `marketable_net_issuance_usd_millions` as the month-to-month change in that stock. This is a redemption-adjusted stock-change denominator, not a gross auction issuance measure.
+
+The FRED sidecars are treated as descriptive market and balance-sheet context. Daily yield, term-premium, VIX, and broad-dollar series are monthly averaged; the Fed Treasury holdings stock uses the last non-missing observation in the month. These controls do not turn the determinant table into a causal demand or liquidity model.
+
+The full determinant table uses OLS coefficients with a local Newey-West/HAC covariance helper and labels inference as `hac_newey_west_lag_3` under the default monthly spec. `monthly_tic_determinants_compact.csv` and `monthly_tic_determinants_compact.md` are derived presentation surfaces: they pivot official and private coefficients side by side, drop intercepts, and rank rows by the stronger absolute t-stat. They should be cited as compact summaries of descriptive associations, not as separate models.
+
+## Dated ROW ledger
+
+See [Quarterly ROW sources and uses](row_ledger.md) for archived FU inputs, issuer mapping, precision bounds, revision comparisons and explicit certification failures. Expanded Treasury totals from February 2023 combine reported SLT notes/bonds transactions with bills estimated from BL2 position changes.

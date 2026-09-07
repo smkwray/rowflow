@@ -1,0 +1,48 @@
+version: 1
+claim_boundary: descriptive_association_not_causal_demand_curve
+
+samples:
+  tic_expanded_slt:
+    frequency: monthly
+    source_regime: expanded_slt_2023_on
+    flow_scope: total_treasuries
+    pool_with_legacy: false
+  tic_legacy_long_term:
+    frequency: monthly
+    source_regime: legacy_s_form_pre_2023
+    flow_scope: long_term_treasury_bonds_notes
+    pool_with_expanded: false
+  z1_quarterly:
+    frequency: quarterly
+    preferred_measure: FU_transactions
+
+outcomes:
+  - tic_foreign_official_treasury_net_flow_usd_millions
+  - tic_foreign_private_treasury_net_flow_usd_millions
+  - z1_foreign_official_treasury_transaction_q_usd_millions
+  - z1_foreign_private_treasury_transaction_q_usd_millions
+
+baseline_blocks:
+  supply:
+    - net_issuance
+    - gross_issuance
+    - bill_share
+    - wam_or_duration_proxy
+  returns:
+    - treasury_2y_yield
+    - treasury_10y_yield
+    - treasury_30y_yield
+    - term_premium_10y
+  fx_risk:
+    - broad_dollar
+    - vix
+  plumbing:
+    - reserves
+    - on_rrp
+    - tga
+    - fed_treasury_holdings
+
+inference:
+  preferred: hac_newey_west
+  lags_monthly: [3, 6]
+  lags_quarterly: [1, 2]

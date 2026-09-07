@@ -1,6 +1,11 @@
 # Local handoff and planning notes.
 do/
 AGENTS.md
+CLAUDE.md
+.worktrees/
+.claude/
+.codex/
+.cursor/
 
 # Local environments and secrets
 .env

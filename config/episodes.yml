@@ -1,0 +1,63 @@
+version: 1
+
+episodes:
+  - id: tic_full_stitched
+    label: Full TIC stitched sample
+    source: tic
+    frequency: monthly
+    start: null
+    end: null
+    source_regime: null
+    flow_scope: null
+    required_caveat: Preserve TIC source-regime and Treasury flow-scope labels; legacy and expanded SLT concepts are not pooled as a single measurement regime.
+
+  - id: tic_legacy_long_term
+    label: TIC legacy long-term sample
+    source: tic
+    frequency: monthly
+    start: null
+    end: 2023-01
+    source_regime: legacy_s_form_pre_2023
+    flow_scope: long_term_treasury_bonds_notes
+    required_caveat: Legacy TIC sector evidence covers long-term Treasury bonds and notes, not the expanded total-Treasury SLT concept.
+
+  - id: tic_expanded_slt
+    label: TIC expanded SLT sample
+    source: tic
+    frequency: monthly
+    start: 2023-02
+    end: null
+    source_regime: expanded_slt_2023_on
+    flow_scope: total_treasuries
+    required_caveat: Expanded SLT evidence starts in February 2023 and covers total Treasuries under the expanded file layout.
+
+  - id: z1_recent_high_rate_qt
+    label: Z.1 recent high-rate/QT window
+    source: z1
+    frequency: quarterly
+    start: 2023Q1
+    end: null
+    preferred_measure: FU_transactions
+    required_caveat: Z.1 quarterly transactions are a separate source concept from TIC monthly source-defined flows.
+
+  - id: tic_covid_march_2020_placeholder
+    label: COVID / March 2020 placeholder
+    source: tic
+    frequency: monthly
+    start: 2020-03
+    end: 2020-04
+    source_regime: legacy_s_form_pre_2023
+    flow_scope: long_term_treasury_bonds_notes
+    status: placeholder
+    required_caveat: Placeholder episode for descriptive accounting only.
+
+  - id: tic_tga_rebuild_placeholder
+    label: TGA rebuild placeholder
+    source: tic
+    frequency: monthly
+    start: 2023-06
+    end: 2023-09
+    source_regime: expanded_slt_2023_on
+    flow_scope: total_treasuries
+    status: placeholder
+    required_caveat: Placeholder episode for descriptive accounting only.

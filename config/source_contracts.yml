@@ -110,6 +110,26 @@ sibling_artifacts:
         required: false
         notes: Optional episode labels for descriptive figures.
 
+  qrawatch:
+    root_env: QRAWATCH_ROOT
+    default_root: ../qrawatch
+    role: QRA and Treasury financing context, including reusable FiscalData debt tables.
+    artifacts:
+      mspd_table_1:
+        relative_path: data/raw/fiscaldata/mspd_table_1.csv
+        destination: data/imported/qrawatch/mspd_table_1.csv
+        required: false
+        expected_columns_any:
+          - [record_date, security_type_desc, debt_held_public_mil_amt]
+        notes: Optional MSPD Table 1 source for marketable debt held by public and month-to-month net issuance proxy denominators.
+      fred_core_wide:
+        relative_path: data/raw/fred/core_wide.csv
+        destination: data/imported/qrawatch/fred_core_wide.csv
+        required: false
+        expected_columns_any:
+          - [date, DGS10, VIXCLS, TREAST]
+        notes: Optional FRED core sidecar for Treasury yields, term-premium, risk, and Fed Treasury holdings determinant controls.
+
   fp-tdc:
     root_env: FPTDC_ROOT
     default_root: ../fp-tdc
@@ -127,6 +147,14 @@ sibling_artifacts:
         notes: Local FRED observation cache for foreign private Treasury levels; use as level-change context, not transaction flow.
 
 primary_sources_after_sibling_reuse:
+  fred_broad_dollar:
+    source_family: Federal Reserve / FRED
+    series_id: DTWEXBGS
+    graph_csv_url: https://fred.stlouisfed.org/graph/fredgraph.csv?id=DTWEXBGS
+    role: Nominal broad U.S. dollar index control for determinant tables.
+    frequency: daily
+    units: Index Jan 2006=100
+    panel_transform: Monthly average into broad_dollar_index.
   tic_slt_table3:
     source_family: Treasury International Capital System
     landing_page: https://home.treasury.gov/data/treasury-international-capital-tic-system
