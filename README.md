@@ -6,32 +6,25 @@ The package splits foreign Treasury absorption into **foreign official**, **fore
 
 The Phase 2 determinant layer adds source-regime ledgers, episode absorption accounting, a monthly determinant panel, and first-pass official/private determinant tables. These outputs are exploratory descriptive associations, not causal demand curves.
 
-## Current result
+## Output scope
 
-The current real backend build supports one main interpretation: foreign official institutions remain a large Treasury stock holder base, but recent marginal rest-of-world Treasury absorption is mostly private-led.
+The package can produce monthly TIC and quarterly Z.1 holder-flow panels,
+source-regime ledgers, complete-window episode totals and denominator shares,
+and descriptive determinant tables. Numerical results require a dated input
+receipt and a regenerated output; historical local builds are not current
+candidate evidence. Missing observations do not establish zero absorption.
 
-Current local real-package outputs:
+Determinant tables report OLS coefficients with lag-3 Newey–West/HAC standard
+errors and asymptotic-normal p-values under the default monthly specification.
+They remain descriptive associations.
 
-- `data/derived/tic_row_monthly_real.csv`: 578 monthly rows, `1978-01..2026-02`.
-- `data/derived/z1_row_quarterly_real.csv`: 302 transaction-supported quarters, `1946Q4..2025Q4`, with matched Z.1 level columns for stock-vs-flow figures.
-- `data/derived/rowflow_panel.csv`: 578 monthly rows joining TIC flows, source-regime labels, IRO sidecars, Z.1 transaction context, liquidity diagnostics, Treasury supply/debt denominators, FRED market sidecars, and TDC anchors.
-- `output/tables/rowflow_results_summary.csv`: compact results table for paper/deck use.
-- `output/figures/stock_vs_flow.svg`: figure showing official/private Z.1 stock context against recent TIC transaction flows.
-
-Current local determinant outputs from `make real-determinants`:
-
-- `output/tables/source_regime_ledger.csv`: TIC legacy, TIC expanded SLT, and Z.1 source-concept ledger.
-- `output/tables/episode_absorption.csv`: official/private/IRO episode accounting with net-issuance, gross-issuance, and marketable-debt denominator shares where source coverage is available.
-- `data/derived/foreign_absorption_determinants_monthly.csv`: monthly determinant panel with TIC source-regime labels preserved.
-- `output/tables/monthly_tic_determinants.csv`: first-pass ordinary OLS descriptive determinant table.
-- `output/tables/monthly_tic_determinants_compact.csv`: presentation-oriented official/private coefficient summary derived from the full determinant table.
-- `output/reports/monthly_tic_determinants_compact.md`: human-readable companion for the compact determinant table.
-- `output/reports/foreign_absorption_determinants.md`: compact determinant-layer report and claim-boundary summary.
-
-Headline recent-window result:
-
-- TIC expanded-SLT window `2023-02..2026-02`: foreign private net Treasury flow is `1,797,270` USD millions, foreign official flow is `289,013` USD millions, and international/regional organizations add a separate `77,485` USD millions sidecar.
-- Z.1 recent transaction window `2023Q1..2025Q4`: foreign private transaction flow is `1,698,504` USD millions and foreign official transaction flow is `147,442` USD millions.
+The dated ROW ledger separates transaction-accounting checks from stock
+certification. Its Treasury cross-equation reconstruction is independent of the
+published asset total, but uses the same Z.1 system and discrepancy; it is not an
+external independent check. Every configured stock leaf is reported even when
+its level, revaluation, other-volume adjustment, or valuation basis is missing
+or unestablished. Source-published residual adjustments provide acquisition
+consistency, not independent stock certification. No adjustment is manufactured.
 
 ## Claim boundary
 
@@ -168,7 +161,7 @@ For the real determinant package, run:
 make real-determinants
 ```
 
-This target runs `make real-package`, writes the determinant ledger, episode table, determinant panel, first-pass determinant table, compact presentation CSV/Markdown, determinant report, manifest, and package validation. The determinant tables use OLS coefficients with a local Newey-West/HAC covariance helper and label inference as `hac_newey_west_lag_3` under the default monthly spec. FRED sidecars add Treasury yield, term-premium, broad-dollar, VIX, and Fed Treasury holdings controls.
+This target runs `make real-package`, writes the determinant ledger, episode table, determinant panel, first-pass determinant table, compact presentation CSV/Markdown, determinant report, manifest, and package validation. The determinant tables use OLS coefficients with lag-3 Newey–West/HAC standard errors and asymptotic-normal p-values and label inference as `hac_newey_west_lag_3` under the default monthly spec. FRED sidecars add Treasury yield, term-premium, broad-dollar, VIX, and Fed Treasury holdings controls.
 
 ## Source strategy
 

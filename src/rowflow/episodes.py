@@ -57,7 +57,39 @@ def _first_column(df: pd.DataFrame, candidates: list[str]) -> str | None:
 def _numeric_sum(df: pd.DataFrame, column: str) -> float | pd._libs.missing.NAType:
     if column not in df.columns:
         return pd.NA
-    return pd.to_numeric(df[column], errors="coerce").sum()
+    values = _numeric_values(df, column)
+    return values.sum(min_count=1) if len(values) and values.notna().all() else pd.NA
+
+
+def _numeric_values(df: pd.DataFrame, column: str) -> pd.Series:
+    values = df[column] if column in df else pd.Series(index=df.index, dtype=float)
+    return pd.to_numeric(values, errors="coerce").replace([float("inf"), -float("inf")], float("nan"))
+
+
+def _complete_window(window: pd.DataFrame, episode: dict, column: str, freq: str) -> pd.DataFrame:
+    """Materialize every expected period so omissions cannot become partial totals."""
+    window = window.copy()
+    window[column] = pd.PeriodIndex(window[column], freq=freq).astype(str)
+    if window[column].duplicated().any():
+        raise ValueError("Duplicate episode periods")
+    start = episode.get("start") or (window[column].min() if len(window) else None)
+    end = episode.get("end") or (window[column].max() if len(window) else None)
+    if start is None or end is None:
+        return window
+    expected = pd.period_range(start, end, freq=freq).astype(str)
+    return window.set_index(column).reindex(expected).rename_axis(column).reset_index()
+
+
+def _coverage(row: dict, window: pd.DataFrame, columns: list[str]) -> None:
+    row["n_expected"] = len(window)
+    valid = pd.Series(True, index=window.index)
+    for column in columns:
+        count = int(_numeric_values(window, column).notna().sum())
+        row[column + "_n_valid"] = count
+        valid &= _numeric_values(window, column).notna()
+    row["n_valid"] = int(valid.sum())
+    row["n_observed"] = row["rows"]
+    row["coverage_status"] = "complete" if len(window) and row["n_valid"] == len(window) else "incomplete"
 
 
 def _period_mask(df: pd.DataFrame, column: str, start: str | None, end: str | None) -> pd.Series:
@@ -85,7 +117,8 @@ def _add_denominator_columns(row: dict[str, object], window: pd.DataFrame) -> No
     }
     for denominator_name, candidates in FLOW_DENOMINATORS.items():
         column = _first_column(window, candidates)
-        denominator = pd.to_numeric(window[column], errors="coerce").sum() if column else pd.NA
+        denominator = _numeric_sum(window, column) if column else pd.NA
+        row[f"{denominator_name}_n_valid"] = int(_numeric_values(window, column).notna().sum()) if column else 0
         row[f"{denominator_name}_denominator_usd_millions"] = denominator
         for name, value in numerators.items():
             row[f"{name}_share_of_{denominator_name}"] = _safe_share(value, denominator)
@@ -94,10 +127,11 @@ def _add_denominator_columns(row: dict[str, object], window: pd.DataFrame) -> No
     for denominator_name, candidates in STOCK_DENOMINATORS.items():
         column = _first_column(window, candidates)
         if column:
-            values = pd.to_numeric(window[column], errors="coerce").dropna()
-            denominator = values.iloc[-1] if not values.empty else pd.NA
+            values = _numeric_values(window, column)
+            denominator = values.iloc[-1] if len(values) and values.notna().all() else pd.NA
         else:
             denominator = pd.NA
+        row[f"{denominator_name}_n_valid"] = int(_numeric_values(window, column).notna().sum()) if column else 0
         row[f"{denominator_name}_denominator_usd_millions"] = denominator
         for name, value in numerators.items():
             row[f"{name}_share_of_{denominator_name}"] = _safe_share(value, denominator)
@@ -126,15 +160,16 @@ def _tic_episode_row(panel: pd.DataFrame, episode: dict[str, Any]) -> dict[str, 
         mask &= panel["tic_treasury_flow_scope"].astype(str) == str(episode["flow_scope"])
     elif episode.get("flow_scope"):
         mask &= False
-    window = panel[mask].copy()
+    selected = panel[mask]
+    window = _complete_window(selected, episode, "month", "M")
     row: dict[str, object] = {
         "episode_id": episode["id"],
         "label": episode.get("label", episode["id"]),
         "source_family": "tic",
         "frequency": "monthly",
-        "sample_start": window["month"].min() if not window.empty else "",
-        "sample_end": window["month"].max() if not window.empty else "",
-        "rows": len(window),
+        "sample_start": selected["month"].min() if not selected.empty else "",
+        "sample_end": selected["month"].max() if not selected.empty else "",
+        "rows": len(selected),
         "source_regime": episode.get("source_regime") or "mixed_or_unrestricted",
         "flow_scope": episode.get("flow_scope") or "mixed_or_unrestricted",
         "transaction_or_position_concept": "TIC monthly source-defined net Treasury flow",
@@ -145,6 +180,7 @@ def _tic_episode_row(panel: pd.DataFrame, episode: dict[str, Any]) -> dict[str, 
         "official_private_iro_absorption_usd_millions": _numeric_sum(window, TIC_TOTAL_WITH_IRO),
         "required_caveat": episode.get("required_caveat", ""),
     }
+    _coverage(row, window, [TIC_OFFICIAL, TIC_PRIVATE, TIC_TOTAL, TIC_IRO, TIC_TOTAL_WITH_IRO])
     row.update(_leader_counts(window, "tic_row_absorption_leader"))
     _add_denominator_columns(row, window)
     return row
@@ -152,15 +188,16 @@ def _tic_episode_row(panel: pd.DataFrame, episode: dict[str, Any]) -> dict[str, 
 
 def _z1_episode_row(z1_panel: pd.DataFrame, episode: dict[str, Any]) -> dict[str, object]:
     mask = _period_mask(z1_panel, "quarter", episode.get("start"), episode.get("end"))
-    window = z1_panel[mask].copy()
+    selected = z1_panel[mask]
+    window = _complete_window(selected, episode, "quarter", "Q")
     row: dict[str, object] = {
         "episode_id": episode["id"],
         "label": episode.get("label", episode["id"]),
         "source_family": "z1",
         "frequency": "quarterly",
-        "sample_start": window["quarter"].min() if not window.empty else "",
-        "sample_end": window["quarter"].max() if not window.empty else "",
-        "rows": len(window),
+        "sample_start": selected["quarter"].min() if not selected.empty else "",
+        "sample_end": selected["quarter"].max() if not selected.empty else "",
+        "rows": len(selected),
         "source_regime": "z1",
         "flow_scope": "treasury_securities",
         "transaction_or_position_concept": "Z.1 quarterly FU transactions",
@@ -171,6 +208,7 @@ def _z1_episode_row(z1_panel: pd.DataFrame, episode: dict[str, Any]) -> dict[str
         "official_private_iro_absorption_usd_millions": pd.NA,
         "required_caveat": episode.get("required_caveat", ""),
     }
+    _coverage(row, window, [Z1_OFFICIAL_Q, Z1_PRIVATE_Q, Z1_TOTAL_Q])
     row.update(_leader_counts(window, "z1_row_absorption_leader"))
     _add_denominator_columns(row, window)
     return row

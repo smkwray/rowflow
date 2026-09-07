@@ -66,3 +66,13 @@ def test_zero_net_flow_does_not_imply_zero_component_shares() -> None:
     rows = build_ratewall_foreign_route_support_contract(rowflow_panel=panel)
     assert rows["share_of_foreign_total"].eq("").all()
     assert rows["amount_usd_millions"].tolist() == ["10", "-10", "0", "0"]
+
+
+@pytest.mark.parametrize("quarter", [None, "", "2024Q4", "malformed"])
+def test_month_derives_reference_quarter(quarter) -> None:
+    from rowflow.ratewall_contracts import TIC_COMPONENTS
+
+    row = {"month": "2025-04", "quarter": quarter}
+    row.update(dict.fromkeys(TIC_COMPONENTS.values(), 1.0))
+    out = build_ratewall_foreign_route_support_contract(rowflow_panel=pd.DataFrame([row]))
+    assert out.ref_quarter.eq("2025Q2").all()

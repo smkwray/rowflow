@@ -104,6 +104,34 @@ def _terms(*blocks: tuple[list[str], float]) -> dict[str, float]:
     return {series: value for series, value in coefficients.items() if value}
 
 
+def _stock_bridge(code: str, quarter: str, contract: dict, values: dict) -> dict:
+    level = contract["level_series"]
+    previous = str(pd.Period(quarter, freq="Q") - 1)
+    level_key = level or "unmapped_level:" + code
+    previous_key = level_key + "@" + previous
+    fr, fv = contract["revaluation_series"], contract["other_volume_series"]
+    terms = {level_key: 1, previous_key: -1, "FU" + code + ".Q": -1, fr: -1, fv: -1}
+    expanded = {(quarter, series): values[(quarter, series)] for series in terms if (quarter, series) in values}
+    if level and (previous, level) in values:
+        expanded[(quarter, previous_key)] = values[(previous, level)]
+    result = check_identity("stock_bridge_" + code, quarter, terms, expanded)
+    result.update({"leaf_code": code, "level_series": level, "previous_quarter": previous,
+                   "valuation_basis": contract["valuation_basis"], "mapping_source": contract["mapping_source"],
+                   "source_consistency_status": result["status"]})
+    for name, series in [("revaluation", fr), ("other_volume", fv)]:
+        cell = values.get((quarter, series), {})
+        result.update({name + "_series": series, name + "_value_usd_millions": cell.get("value"),
+                       name + "_source_sha256": cell.get("source_sha256"),
+                       name + "_provenance": contract[name + "_derivation"] if cell.get("value") is not None else "missing"})
+    independent = (contract["valuation_basis"] != "unestablished"
+                   and all(result[name + "_provenance"] == "independently_source_derived"
+                           for name in ["revaluation", "other_volume"]))
+    result["independent_stock_check_available"] = independent and result["status"] != "missing_inputs"
+    if result["status"] == "pass" and not independent:
+        result["status"] = "unavailable"
+    return result
+
+
 def build_ledger(root: Path, spec_path: Path, output: Path) -> dict:
     spec = yaml.safe_load(spec_path.read_text())
     values, metadata, receipt = load_archive(root)
@@ -119,6 +147,21 @@ def build_ledger(root: Path, spec_path: Path, output: Path) -> dict:
     assets, liabilities, equity = (spec[key] for key in ("asset_leaves", "liability_leaves", "equity_leaves"))
     if len(set(assets + liabilities + equity)) != len(assets + liabilities + equity):
         raise ValueError("Ledger leaves overlap")
+    contracts = spec["stock_contracts"]
+    if set(contracts) != set(assets + liabilities + equity):
+        raise ValueError("Stock contracts must explicitly cover every ledger leaf")
+    for code, contract in contracts.items():
+        for field in ["level_series", "valuation_basis", "mapping_source", "revaluation_series",
+                      "revaluation_derivation", "other_volume_series", "other_volume_derivation"]:
+            if field not in contract or (field != "level_series" and not contract[field]):
+                raise ValueError(f"Missing stock contract field: {code} {field}")
+        if contract["level_series"] is not None and not re.fullmatch(r"(?:FL|LM)" + code + r"\.Q", contract["level_series"]):
+            raise ValueError(f"Invalid explicit stock level series: {code}")
+        for name, prefix in [("revaluation", "FR"), ("other_volume", "FV")]:
+            if contract[name + "_series"] != prefix + code + ".Q":
+                raise ValueError(f"Invalid leaf adjustment series: {code}")
+            if contract[name + "_derivation"] not in {"unestablished", "fed_computed_residual", "independently_source_derived"}:
+                raise ValueError(f"Invalid adjustment provenance: {code}")
     totals, resources = spec["totals"], spec["resources"]
     roles = {code: role for role, codes in [("asset_leaf", assets), ("liability_leaf", liabilities), ("equity_leaf", equity)] for code in codes}
     roles.update(dict.fromkeys(totals.values(), "total"))
@@ -132,7 +175,7 @@ def build_ledger(root: Path, spec_path: Path, output: Path) -> dict:
         "liability_and_equity_leaves_to_total": _terms((liabilities + equity, 1), ([totals["liabilities_and_equity"]], -1)),
         "published_net_lending": _terms(([totals["assets"]], 1), ([totals["liabilities_and_equity"], totals["net_lending"]], -1)),
         "published_discrepancy": _terms(([resources["us_current_account"], resources["capital_transfers_paid"], resources["nonproduced_acquisitions"], totals["assets"], resources["discrepancy"]], -1), ([totals["liabilities_and_equity"]], 1)),
-        "independent_treasury_reconstruction": _terms(([resources["us_current_account"], resources["capital_transfers_paid"], resources["nonproduced_acquisitions"], resources["discrepancy"], "263061105"] + independent_other_assets, -1), (liabilities + equity, 1)),
+        "treasury_cross_equation_reconstruction_independent_of_asset_total": _terms(([resources["us_current_account"], resources["capital_transfers_paid"], resources["nonproduced_acquisitions"], resources["discrepancy"], "263061105"] + independent_other_assets, -1), (liabilities + equity, 1)),
         "currency_split": _terms((["263025003", "263027003"], 1), (["263020005"], -1)),
         "checkable_issuer_bridge": _terms((["263027003"], 1), (["763122605", "753122603", "713122605"], -1)),
         "time_deposit_issuer_bridge": _terms((["263030005"], 1), (["763135265", "753135263"], -1)),
@@ -170,20 +213,12 @@ def build_ledger(root: Path, spec_path: Path, output: Path) -> dict:
                              "perimeter_outcome": spec["perimeter_outcome"],
                              "interpretation": "holder_composition_or_memo",
                              "source_sha256": cell.get("source_sha256")})
-        # Missing FR/FV remains missing. A source-defined balancing adjustment
-        # would make this diagnostic tautological, not an independent check.
         for code in assets + liabilities + equity:
-            level = next((prefix + code + ".Q" for prefix in ["FL", "LM"] if (quarter, prefix + code + ".Q") in values), None)
-            if level is None:
-                continue
-            previous = str(pd.Period(quarter, freq="Q") - 1)
-            previous_key = "PR" + code + ".Q"
-            terms = {level: 1, previous_key: -1, "FU" + code + ".Q": -1,
-                     "FR" + code + ".Q": -1, "FV" + code + ".Q": -1}
-            expanded = {(quarter, series): values[(quarter, series)] for series in terms if (quarter, series) in values}
-            if (previous, level) in values:
-                expanded[(quarter, previous_key)] = values[(previous, level)]
-            stock_checks.append(check_identity("stock_bridge_" + code, quarter, terms, expanded) | {"level_series": level})
+            stock_checks.append(_stock_bridge(code, quarter, contracts[code], values))
+    transaction_passed = bool(checks) and all(row["status"] == "pass" for row in checks)
+    complete_leaves = sum(all(row["source_consistency_status"] != "missing_inputs" for row in stock_checks if row["leaf_code"] == code)
+                          for code in contracts)
+    stock_certified = bool(stock_checks) and all(row["status"] == "pass" for row in stock_checks)
     output.mkdir(parents=True, exist_ok=True)
     for filename, records in [("ledger.csv", rows), ("quarterly.csv", quarterly), ("crosswalk.csv", crosswalk), ("certification.csv", checks),
                               ("deposit_bridge.csv", deposits), ("stock_bridges.csv", stock_checks)]:
@@ -196,7 +231,11 @@ def build_ledger(root: Path, spec_path: Path, output: Path) -> dict:
         "producer_source_sha256": sha256_file(Path(__file__)),
         "checks": {name: dict(Counter(row["status"] for row in checks if row["check"] == name)) for name in identities},
         "stock_checks": dict(Counter(row["status"] for row in stock_checks)),
-        "certified": all(row["status"] == "pass" for row in checks + stock_checks) and bool(stock_checks),
+        "transaction_checks_passed": transaction_passed,
+        "stock_expected_leaves": len(contracts), "stock_complete_leaves": complete_leaves,
+        "stock_certification": "certified" if stock_certified else "unavailable",
+        "full_item3_certified": transaction_passed and stock_certified,
+        "certified": transaction_passed and stock_certified,
         "deposit_coverage": "Checkable and time-deposit issuer bridges explicitly tested; interbank claims remain a separate claim class",
         "claim_boundary": spec["claim_boundary"],
         "pending_final_vintage": spec["pending_vintage"],

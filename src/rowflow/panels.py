@@ -446,8 +446,8 @@ def _normalize_issuance_diagnostics(input_path: Path) -> pd.DataFrame:
 
     rows: list[dict[str, object]] = []
     for month, group in work.groupby("month", dropna=False):
-        accepted_total = group["_accepted_amount_sum"].sum()
-        offering_total = group["_offering_amount_sum"].sum()
+        accepted_total = group["_accepted_amount_sum"].sum(min_count=1)
+        offering_total = group["_offering_amount_sum"].sum(min_count=1)
         row: dict[str, object] = {
             "month": month,
             "gross_issuance_usd_millions": accepted_total / 1_000_000 if pd.notna(accepted_total) else pd.NA,
@@ -456,10 +456,14 @@ def _normalize_issuance_diagnostics(input_path: Path) -> pd.DataFrame:
         if "bill_share_by_accepted_amount" in group.columns:
             bill_share = _numeric(group["bill_share_by_accepted_amount"]).dropna()
             row["bill_share"] = bill_share.iloc[0] if not bill_share.empty else pd.NA
-        if "weighted_maturity_years" in group.columns and group["_accepted_amount_sum"].notna().any():
-            weights = group["_accepted_amount_sum"].fillna(0)
-            if weights.sum() != 0:
-                row["wam_years"] = (_numeric(group["weighted_maturity_years"]) * weights).sum() / weights.sum()
+        row["wam_years"] = pd.NA
+        if "weighted_maturity_years" in group.columns:
+            maturity = _numeric(group["weighted_maturity_years"])
+            valid = maturity.notna() & group["_accepted_amount_sum"].notna()
+            weights = group.loc[valid, "_accepted_amount_sum"]
+            denominator = weights.sum(min_count=1)
+            if pd.notna(denominator) and denominator != 0:
+                row["wam_years"] = (maturity[valid] * weights).sum(min_count=1) / denominator
         rows.append(row)
     return pd.DataFrame(rows).sort_values("month")
 

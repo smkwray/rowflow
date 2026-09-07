@@ -189,3 +189,18 @@ def test_build_rowflow_panel_curates_real_sibling_style_columns(tmp_path: Path) 
     assert panel.loc[0, "broad_dollar_index"] == 120.0
     assert panel.loc[0, "vix_index"] == 14.0
     assert panel.loc[0, "fed_treasury_holdings_usd_millions"] == 5010000
+
+
+def test_issuance_missing_amounts_and_maturities_are_not_zero(tmp_path: Path) -> None:
+    from rowflow.panels import _normalize_issuance_diagnostics
+
+    path = tmp_path / "issuance.csv"
+    pd.DataFrame({"month": ["2024-01", "2024-02", "2024-03", "2024-03"],
+                  "accepted_amount": [None, 100, 100, 900],
+                  "offering_amount": [None, None, 100, 900],
+                  "weighted_maturity_years": [None, None, 5, None]}).to_csv(path, index=False)
+    out = _normalize_issuance_diagnostics(path).set_index("month")
+    assert pd.isna(out.loc["2024-01", "gross_issuance_usd_millions"])
+    assert pd.isna(out.loc["2024-01", "offering_amount_usd_millions"])
+    assert pd.isna(out.loc["2024-02", "wam_years"])
+    assert out.loc["2024-03", "wam_years"] == 5

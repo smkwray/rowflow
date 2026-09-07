@@ -88,7 +88,7 @@ def _tic_rows(panel: pd.DataFrame, producer_artifact: str) -> list[dict[str, str
                     "contract_frequency": "monthly",
                     "period_start": month,
                     "period_end": month,
-                    "ref_quarter": str(row.get("quarter", "")),
+                    "ref_quarter": str(pd.Period(month, freq="M").asfreq("Q")),
                     "amount_usd_millions": _fmt(amount),
                     "denominator_usd_millions": _fmt(denominator),
                     "share_of_foreign_total": _fmt(share),

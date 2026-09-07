@@ -112,3 +112,33 @@ def test_episode_absorption_reports_missing_denominators(tmp_path: Path) -> None
     row = table.iloc[0]
     assert "net_issuance:unavailable" in row["denominator_status"]
     assert pd.isna(row["private_share_of_net_issuance"])
+
+
+def test_episode_requires_every_period_and_finite_component_and_denominator() -> None:
+    from rowflow.episodes import _tic_episode_row
+    from rowflow.panels import TIC_IRO, TIC_OFFICIAL, TIC_PRIVATE, TIC_TOTAL, TIC_TOTAL_WITH_IRO
+
+    columns = [TIC_OFFICIAL, TIC_PRIVATE, TIC_TOTAL, TIC_IRO, TIC_TOTAL_WITH_IRO]
+    frame = pd.DataFrame({"month": ["2024-01", "2024-02", "2024-03"],
+                          **{c: [1, 2, 3] for c in columns},
+                          "net_issuance_usd_millions": [10, 20, 30],
+                          "marketable_debt_usd_millions": [100, 200, 300]})
+    episode = {"id": "fixed", "start": "2024-01", "end": "2024-03"}
+    full = _tic_episode_row(frame, episode)
+    assert full["n_expected"] == full["n_valid"] == 3
+    assert full["official_absorption_usd_millions"] == 6
+    for partial in [frame.iloc[:0], frame.iloc[:2], frame.iloc[[0, 2]],
+                    frame.assign(**{TIC_OFFICIAL: [None, None, None]})]:
+        row = _tic_episode_row(partial, episode)
+        assert row["coverage_status"] == "incomplete"
+        assert row["n_expected"] == 3
+        assert pd.isna(row["official_absorption_usd_millions"])
+        assert pd.isna(row["official_share_of_net_issuance"])
+    for bad in [None, "bad", float("inf")]:
+        broken = frame.assign(net_issuance_usd_millions=[10, bad, 30],
+                              marketable_debt_usd_millions=[100, 200, bad])
+        row = _tic_episode_row(broken, episode)
+        assert row["net_issuance_n_valid"] == 2
+        assert pd.isna(row["net_issuance_denominator_usd_millions"])
+        assert pd.isna(row["marketable_debt_denominator_usd_millions"])
+        assert pd.isna(row["private_share_of_net_issuance"])

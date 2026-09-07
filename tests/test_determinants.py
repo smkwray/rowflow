@@ -38,3 +38,18 @@ def test_build_determinant_panel_preserves_source_labels_lags_and_standardizes(t
     audit = pd.read_csv(missingness)
     assert "unavailable" in set(audit["status"])
     assert "available_now" in set(audit["status"])
+
+
+def test_missingness_counts_only_finite_numeric_values(tmp_path: Path) -> None:
+    panel, spec, audit = (tmp_path / name for name in ["panel.csv", "spec.yml", "audit.csv"])
+    pd.DataFrame({"month": ["2024-01", "2024-02", "2024-03", "2024-04"],
+                  "bill_share": [1, 3, "bad", float("inf")],
+                  "wam_years": ["bad"] * 4}).to_csv(panel, index=False)
+    spec.write_text("baseline_blocks:\n  supply: [bill_share, wam_or_duration_proxy]\n")
+    out = build_determinant_panel(panel, spec, missingness_output_path=audit)
+    rows = pd.read_csv(audit).set_index("variable")
+    assert rows.loc["bill_share", "non_null"] == 2
+    assert rows.loc["bill_share", "missing"] == 2
+    assert out["bill_share_z"].notna().sum() == 2
+    assert rows.loc["wam_or_duration_proxy", "status"] == "unavailable"
+    assert rows.loc["wam_or_duration_proxy", "non_null"] == 0

@@ -50,7 +50,7 @@ def _first_column(df: pd.DataFrame, candidates: list[str]) -> str | None:
 
 
 def _standardize(series: pd.Series) -> pd.Series:
-    numeric = pd.to_numeric(series, errors="coerce")
+    numeric = pd.to_numeric(series, errors="coerce").replace([float("inf"), -float("inf")], float("nan"))
     std = numeric.std(ddof=0)
     if pd.isna(std) or std == 0:
         return pd.Series(pd.NA, index=series.index, dtype="Float64")
@@ -100,12 +100,13 @@ def build_determinant_panel(
             )
             continue
         z_column = f"{variable}_z"
-        out[z_column] = _standardize(out[source_column])
-        non_null = int(out[source_column].notna().sum())
+        numeric = pd.to_numeric(out[source_column], errors="coerce").replace([float("inf"), -float("inf")], float("nan"))
+        out[z_column] = _standardize(numeric)
+        non_null = int(numeric.notna().sum())
         audit_rows.append(
             {
                 "variable": variable,
-                "status": "available_now",
+                "status": "available_now" if non_null else "unavailable",
                 "source_column": source_column,
                 "standardized_column": z_column,
                 "non_null": non_null,

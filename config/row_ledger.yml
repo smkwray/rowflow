@@ -79,3 +79,331 @@ deposit_series:
   interbank_fbo: {code: '754116005', issuer: fbo, eligibility: excluded_issuer}
 perimeter_outcome: BOGZ1FL764100005Q
 claim_boundary: Descriptive legal-holder accounting; covered deposits are holder-composition measurements, not an exclusive foreign offset or Treasury funding attribution.
+
+# Every leaf is explicit. Presence does not establish independent adjustment derivation.
+# Fed FR/FV may be complementary residual formulas; unknown derivation cannot certify.
+stock_contracts:
+  '263011105':
+    level_series: null
+    valuation_basis: unestablished
+    mapping_source: no level identifier established in retained dictionaries
+    revaluation_series: FR263011105.Q
+    revaluation_derivation: unestablished
+    other_volume_series: FV263011105.Q
+    other_volume_derivation: unestablished
+  '264016005':
+    level_series: FL264016005.Q
+    valuation_basis: unestablished
+    mapping_source: retained June 11 dictionary identifier; valuation comparability
+      unestablished
+    revaluation_series: FR264016005.Q
+    revaluation_derivation: unestablished
+    other_volume_series: FV264016005.Q
+    other_volume_derivation: unestablished
+  '263020005':
+    level_series: FL263020005.Q
+    valuation_basis: unestablished
+    mapping_source: retained June 11 dictionary identifier; valuation comparability
+      unestablished
+    revaluation_series: FR263020005.Q
+    revaluation_derivation: unestablished
+    other_volume_series: FV263020005.Q
+    other_volume_derivation: unestablished
+  '263030005':
+    level_series: FL263030005.Q
+    valuation_basis: unestablished
+    mapping_source: retained June 11 dictionary identifier; valuation comparability
+      unestablished
+    revaluation_series: FR263030005.Q
+    revaluation_derivation: unestablished
+    other_volume_series: FV263030005.Q
+    other_volume_derivation: unestablished
+  '263034003':
+    level_series: FL263034003.Q
+    valuation_basis: unestablished
+    mapping_source: retained June 11 dictionary identifier; valuation comparability
+      unestablished
+    revaluation_series: FR263034003.Q
+    revaluation_derivation: unestablished
+    other_volume_series: FV263034003.Q
+    other_volume_derivation: unestablished
+  '262051005':
+    level_series: FL262051005.Q
+    valuation_basis: unestablished
+    mapping_source: retained June 11 dictionary identifier; valuation comparability
+      unestablished
+    revaluation_series: FR262051005.Q
+    revaluation_derivation: unestablished
+    other_volume_series: FV262051005.Q
+    other_volume_derivation: unestablished
+  '263069103':
+    level_series: LM263069103.Q
+    valuation_basis: unestablished
+    mapping_source: retained June 11 dictionary identifier; valuation comparability
+      unestablished
+    revaluation_series: FR263069103.Q
+    revaluation_derivation: unestablished
+    other_volume_series: FV263069103.Q
+    other_volume_derivation: unestablished
+  '263061105':
+    level_series: LM263061105.Q
+    valuation_basis: unestablished
+    mapping_source: LM263061105.Q; Federal Reserve guide identifies FL263061105.Q
+      as the same series; valuation comparability to adjustments requires separate
+      evidence
+    revaluation_series: FR263061105.Q
+    revaluation_derivation: unestablished
+    other_volume_series: FV263061105.Q
+    other_volume_derivation: unestablished
+  '263061705':
+    level_series: LM263061705.Q
+    valuation_basis: unestablished
+    mapping_source: retained June 11 dictionary identifier; valuation comparability
+      unestablished
+    revaluation_series: FR263061705.Q
+    revaluation_derivation: unestablished
+    other_volume_series: FV263061705.Q
+    other_volume_derivation: unestablished
+  '263062003':
+    level_series: LM263062003.Q
+    valuation_basis: unestablished
+    mapping_source: retained June 11 dictionary identifier; valuation comparability
+      unestablished
+    revaluation_series: FR263062003.Q
+    revaluation_derivation: unestablished
+    other_volume_series: FV263062003.Q
+    other_volume_derivation: unestablished
+  '263063005':
+    level_series: LM263063005.Q
+    valuation_basis: unestablished
+    mapping_source: retained June 11 dictionary identifier; valuation comparability
+      unestablished
+    revaluation_series: FR263063005.Q
+    revaluation_derivation: unestablished
+    other_volume_series: FV263063005.Q
+    other_volume_derivation: unestablished
+  '263069005':
+    level_series: FL263069005.Q
+    valuation_basis: unestablished
+    mapping_source: retained June 11 dictionary identifier; valuation comparability
+      unestablished
+    revaluation_series: FR263069005.Q
+    revaluation_derivation: unestablished
+    other_volume_series: FV263069005.Q
+    other_volume_derivation: unestablished
+  '263092305':
+    level_series: LM263092305.Q
+    valuation_basis: unestablished
+    mapping_source: retained June 11 dictionary identifier; valuation comparability
+      unestablished
+    revaluation_series: FR263092305.Q
+    revaluation_derivation: unestablished
+    other_volume_series: FV263092305.Q
+    other_volume_derivation: unestablished
+  '263064105':
+    level_series: LM263064105.Q
+    valuation_basis: unestablished
+    mapping_source: retained June 11 dictionary identifier; valuation comparability
+      unestablished
+    revaluation_series: FR263064105.Q
+    revaluation_derivation: unestablished
+    other_volume_series: FV263064105.Q
+    other_volume_derivation: unestablished
+  '263092101':
+    level_series: LM263092101.Q
+    valuation_basis: unestablished
+    mapping_source: retained June 11 dictionary identifier; valuation comparability
+      unestablished
+    revaluation_series: FR263092101.Q
+    revaluation_derivation: unestablished
+    other_volume_series: FV263092101.Q
+    other_volume_derivation: unestablished
+  '263064203':
+    level_series: LM263064203.Q
+    valuation_basis: unestablished
+    mapping_source: retained June 11 dictionary identifier; valuation comparability
+      unestablished
+    revaluation_series: FR263064203.Q
+    revaluation_derivation: unestablished
+    other_volume_series: FV263064203.Q
+    other_volume_derivation: unestablished
+  '543141905':
+    level_series: FL543141905.Q
+    valuation_basis: unestablished
+    mapping_source: retained June 11 dictionary identifier; valuation comparability
+      unestablished
+    revaluation_series: FR543141905.Q
+    revaluation_derivation: unestablished
+    other_volume_series: FV543141905.Q
+    other_volume_derivation: unestablished
+  '543151905':
+    level_series: FL543151905.Q
+    valuation_basis: unestablished
+    mapping_source: retained June 11 dictionary identifier; valuation comparability
+      unestablished
+    revaluation_series: FR543151905.Q
+    revaluation_derivation: unestablished
+    other_volume_series: FV543151905.Q
+    other_volume_derivation: unestablished
+  '263070005':
+    level_series: LM263070005.Q
+    valuation_basis: unestablished
+    mapping_source: retained June 11 dictionary identifier; valuation comparability
+      unestablished
+    revaluation_series: FR263070005.Q
+    revaluation_derivation: unestablished
+    other_volume_series: FV263070005.Q
+    other_volume_derivation: unestablished
+  '263090005':
+    level_series: FL263090005.Q
+    valuation_basis: unestablished
+    mapping_source: retained June 11 dictionary identifier; valuation comparability
+      unestablished
+    revaluation_series: FR263090005.Q
+    revaluation_derivation: unestablished
+    other_volume_series: FV263090005.Q
+    other_volume_derivation: unestablished
+  '313011303':
+    level_series: FL313011303.Q
+    valuation_basis: unestablished
+    mapping_source: retained June 11 dictionary identifier; valuation comparability
+      unestablished
+    revaluation_series: FR313011303.Q
+    revaluation_derivation: unestablished
+    other_volume_series: FV313011303.Q
+    other_volume_derivation: unestablished
+  '264116005':
+    level_series: FL264116005.Q
+    valuation_basis: unestablished
+    mapping_source: retained June 11 dictionary identifier; valuation comparability
+      unestablished
+    revaluation_series: FR264116005.Q
+    revaluation_derivation: unestablished
+    other_volume_series: FV264116005.Q
+    other_volume_derivation: unestablished
+  '263130505':
+    level_series: LM263130505.Q
+    valuation_basis: unestablished
+    mapping_source: retained June 11 dictionary identifier; valuation comparability
+      unestablished
+    revaluation_series: FR263130505.Q
+    revaluation_derivation: unestablished
+    other_volume_series: FV263130505.Q
+    other_volume_derivation: unestablished
+  '262151005':
+    level_series: FL262151005.Q
+    valuation_basis: unestablished
+    mapping_source: retained June 11 dictionary identifier; valuation comparability
+      unestablished
+    revaluation_series: FR262151005.Q
+    revaluation_derivation: unestablished
+    other_volume_series: FV262151005.Q
+    other_volume_derivation: unestablished
+  '263169105':
+    level_series: FL263169105.Q
+    valuation_basis: unestablished
+    mapping_source: retained June 11 dictionary identifier; valuation comparability
+      unestablished
+    revaluation_series: FR263169105.Q
+    revaluation_derivation: unestablished
+    other_volume_series: FV263169105.Q
+    other_volume_derivation: unestablished
+  '263163005':
+    level_series: LM263163005.Q
+    valuation_basis: unestablished
+    mapping_source: retained June 11 dictionary identifier; valuation comparability
+      unestablished
+    revaluation_series: FR263163005.Q
+    revaluation_derivation: unestablished
+    other_volume_series: FV263163005.Q
+    other_volume_derivation: unestablished
+  '263168005':
+    level_series: FL263168005.Q
+    valuation_basis: unestablished
+    mapping_source: retained June 11 dictionary identifier; valuation comparability
+      unestablished
+    revaluation_series: FR263168005.Q
+    revaluation_derivation: unestablished
+    other_volume_series: FV263168005.Q
+    other_volume_derivation: unestablished
+  '263169005':
+    level_series: FL263169005.Q
+    valuation_basis: unestablished
+    mapping_source: retained June 11 dictionary identifier; valuation comparability
+      unestablished
+    revaluation_series: FR263169005.Q
+    revaluation_derivation: unestablished
+    other_volume_series: FV263169005.Q
+    other_volume_derivation: unestablished
+  '263192305':
+    level_series: FL263192305.Q
+    valuation_basis: unestablished
+    mapping_source: retained June 11 dictionary identifier; valuation comparability
+      unestablished
+    revaluation_series: FR263192305.Q
+    revaluation_derivation: unestablished
+    other_volume_series: FV263192305.Q
+    other_volume_derivation: unestablished
+  '263140005':
+    level_series: FL263140005.Q
+    valuation_basis: unestablished
+    mapping_source: retained June 11 dictionary identifier; valuation comparability
+      unestablished
+    revaluation_series: FR263140005.Q
+    revaluation_derivation: unestablished
+    other_volume_series: FV263140005.Q
+    other_volume_derivation: unestablished
+  '263150005':
+    level_series: FL263150005.Q
+    valuation_basis: unestablished
+    mapping_source: retained June 11 dictionary identifier; valuation comparability
+      unestablished
+    revaluation_series: FR263150005.Q
+    revaluation_derivation: unestablished
+    other_volume_series: FV263150005.Q
+    other_volume_derivation: unestablished
+  '263170005':
+    level_series: LM263170005.Q
+    valuation_basis: unestablished
+    mapping_source: retained June 11 dictionary identifier; valuation comparability
+      unestablished
+    revaluation_series: FR263170005.Q
+    revaluation_derivation: unestablished
+    other_volume_series: FV263170005.Q
+    other_volume_derivation: unestablished
+  '263190005':
+    level_series: FL263190005.Q
+    valuation_basis: unestablished
+    mapping_source: retained June 11 dictionary identifier; valuation comparability
+      unestablished
+    revaluation_series: FR263190005.Q
+    revaluation_derivation: unestablished
+    other_volume_series: FV263190005.Q
+    other_volume_derivation: unestablished
+  '263164100':
+    level_series: LM263164100.Q
+    valuation_basis: unestablished
+    mapping_source: retained June 11 dictionary identifier; valuation comparability
+      unestablished
+    revaluation_series: FR263164100.Q
+    revaluation_derivation: unestablished
+    other_volume_series: FV263164100.Q
+    other_volume_derivation: unestablished
+  '263192101':
+    level_series: LM263192101.Q
+    valuation_basis: unestablished
+    mapping_source: retained June 11 dictionary identifier; valuation comparability
+      unestablished
+    revaluation_series: FR263192101.Q
+    revaluation_derivation: unestablished
+    other_volume_series: FV263192101.Q
+    other_volume_derivation: unestablished
+  '313092803':
+    level_series: FL313092803.Q
+    valuation_basis: unestablished
+    mapping_source: retained June 11 dictionary identifier; valuation comparability
+      unestablished
+    revaluation_series: FR313092803.Q
+    revaluation_derivation: unestablished
+    other_volume_series: FV313092803.Q
+    other_volume_derivation: unestablished
