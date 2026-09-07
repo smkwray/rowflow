@@ -57,7 +57,8 @@ def test_revision_bridge_does_not_fill_absent_series(tmp_path: Path) -> None:
     assert pd.isna(absent.revision_usd_millions)
 
 
-def test_every_leaf_and_quarter_remains_visible_when_stock_inputs_missing(tmp_path: Path, monkeypatch) -> None:
+@pytest.mark.parametrize("vintage", ["2026-03-19", "2026-06-11"])
+def test_every_leaf_and_quarter_remains_visible_when_stock_inputs_missing(tmp_path: Path, monkeypatch, vintage) -> None:
     import yaml
 
     import rowflow.z1_ledger as ledger
@@ -72,9 +73,9 @@ def test_every_leaf_and_quarter_remains_visible_when_stock_inputs_missing(tmp_pa
     cells = {(q, s): {"value": 0, "rounding_increment": 1, "raw": "0", "source_sha256": "fixture"}
              for q in quarters for s in series}
     metadata = {s: {"description": "fixture", "units": "Millions of dollars; transactions, not seasonally adjusted"} for s in series}
-    monkeypatch.setattr(ledger, "load_archive", lambda root: (cells, metadata, {"vintage": "2026-03-19", "archive_sha256": "fixture"}))
+    monkeypatch.setattr(ledger, "load_archive", lambda root: (cells, metadata, {"vintage": vintage, "archive_sha256": "fixture"}))
     (tmp_path / "data_dictionary").mkdir()
-    (tmp_path / "data_dictionary/fu133.txt").write_text("\n".join(series))
+    (tmp_path / "data_dictionary" / (spec["ledger_tables"][vintage] + ".txt")).write_text("\n".join(series))
     (tmp_path / "receipt.json").write_text("{}")
     summary = ledger.build_ledger(tmp_path, spec_path, tmp_path / "out")
     stock = pd.read_csv(tmp_path / "out/stock_bridges.csv", dtype={"leaf_code": str})
@@ -85,9 +86,18 @@ def test_every_leaf_and_quarter_remains_visible_when_stock_inputs_missing(tmp_pa
     assert summary["transaction_checks_passed"] is True
     assert summary["stock_expected_leaves"] == 36
     assert summary["stock_complete_leaves"] == 0
-    assert summary["stock_certification"] == "unavailable"
-    assert summary["full_item3_certified"] is summary["certified"] is False
+    assert summary["transaction_ledger_admissible"] is True
+    assert summary["stock_source_consistency"] == "unavailable"
+    assert summary["independent_stock_validation"] == "unavailable"
+    assert summary["recent_external_position_change_check"] == "not_run_in_ledger_build"
+    assert "certified" not in summary and "full_item3_certified" not in summary
     assert "independent_treasury_reconstruction" not in summary["checks"]
+    spec["sample_end"] = "2025Q3"
+    short_spec = tmp_path / "short.yml"
+    short_spec.write_text(yaml.safe_dump(spec))
+    short = ledger.build_ledger(tmp_path, short_spec, tmp_path / "short")
+    assert short["transaction_checks_passed"] is True
+    assert short["transaction_ledger_admissible"] is False  # The 96-quarter inventory is required.
 
 
 def test_stock_bridge_never_falls_back_or_certifies_residual_adjustments() -> None:
@@ -180,3 +190,39 @@ def test_sdr_allocation_stock_does_not_silently_fill_broader_gold_sdr_leaf():
     assert row["status"] == "missing_inputs"
     assert row["gap_usd_millions"] is None
     assert "excludes monetary gold" in row["mapping_source"]
+
+
+@pytest.mark.parametrize("gate,expected", [("transaction_ledger_admissible", 0), ("stock_source_consistency", 1), ("independent_stock_validation", 1)])
+def test_cli_exit_uses_requested_gate(monkeypatch, gate, expected):
+    import rowflow.cli as cli
+
+    monkeypatch.setattr(cli, "build_ledger", lambda *args: {
+        "transaction_ledger_admissible": True, "stock_source_consistency": "unavailable",
+        "independent_stock_validation": "unavailable"})
+    assert cli.main(["build-z1-ledger", "--input", "fixture", "--output", "fixture", "--gate", gate]) == expected
+
+
+def test_failed_transaction_gate_is_not_rescued_by_passing_stock_check():
+    from rowflow.z1_ledger import ledger_gate_passed
+
+    assert not ledger_gate_passed({"transaction_ledger_admissible": False, "stock_source_consistency": "pass"}, "transaction_ledger_admissible")
+
+
+def test_gold_sdr_composite_never_fills_missing_component_or_authenticates_alias():
+    from rowflow.z1_ledger import gold_sdr_source_consistency
+
+    q = "2025Q1"
+    values = {(q, s): {"value": v, "rounding_increment": 1} for s, v in
+              [("FU263011105.Q", 7), ("FU263011205.Q", 2), ("FU313111303.Q", 5), ("LM313111303.Q", 100)]}
+    metadata = {s: {"units": "Millions of dollars; transactions, not seasonally adjusted"} for _, s in values}
+    metadata["LM313111303.Q"]["units"] = "Millions of dollars; amounts outstanding end of period, market value, not seasonally adjusted"
+    row = gold_sdr_source_consistency([q], values, metadata)[0]
+    assert row["status"] == "pass"
+    assert row["dated_level_alias_status"] == "unestablished"
+    assert row["independent_stock_validation"] == "unavailable"
+    assert row["previous_level_candidate_value"] is None
+    del values[(q, "FU263011205.Q")]
+    missing = gold_sdr_source_consistency([q], values, metadata)[0]
+    assert missing["status"] == "missing_inputs" and missing["gap_usd_millions"] is None
+    with pytest.raises(ValueError, match="units differ"):
+        gold_sdr_source_consistency([q], values, {"LM313111303.Q": {"units": "billions"}})

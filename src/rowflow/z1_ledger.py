@@ -159,6 +159,48 @@ def _stock_bridge(code: str, quarter: str, contract: dict, values: dict) -> dict
     return result
 
 
+def gold_sdr_source_consistency(quarters: list[str], values: dict, metadata: dict) -> list[dict]:
+    """Check a documented composite against frozen cells without inventing a dated alias."""
+    terms = {"FU263011105.Q": 1, "FU263011205.Q": -1, "FU313111303.Q": -1}
+    level = "LM313111303.Q"  # Dated tables name SDR allocations, excluding monetary gold.
+    expected_flow_units = "Millions of dollars; transactions, not seasonally adjusted"
+    expected_level_units = "Millions of dollars; amounts outstanding end of period, market value, not seasonally adjusted"
+    for series in [*terms, level]:
+        expected = expected_level_units if series == level else expected_flow_units
+        present = any(s == series and cell.get("value") is not None for (_, s), cell in values.items())
+        if (present or series in metadata) and metadata.get(series, {}).get("units") != expected:
+            raise ValueError(f"Gold/SDR source-check units differ: {series}")
+    rows = []
+    for quarter in quarters:
+        row = check_identity("gold_sdr_transaction_composite", quarter, terms, values)
+        previous = str(pd.Period(quarter, freq="Q") - 1)
+        row.update({"scope": "stock_source_consistency_only", "dated_level_alias_status": "unestablished",
+                    "formula_scope": "current Fed definition applied to frozen cells; dated formula not authenticated",
+                    "level_candidate": level, "level_candidate_units": metadata.get(level, {}).get("units"),
+                    "level_candidate_description": metadata.get(level, {}).get("description"),
+                    "level_candidate_value": values.get((quarter, level), {}).get("value"),
+                    "previous_level_candidate_value": values.get((previous, level), {}).get("value"),
+                    "level_candidate_source_sha256": values.get((quarter, level), {}).get("source_sha256"),
+                    "independent_stock_validation": "unavailable",
+                    "adjustment_concepts": "FR and FV are complementary Fed-computed residual concepts; neither manufactured here",
+                    "claim_boundary": "SDR-allocation level excludes monetary gold; composite-flow equality cannot establish the dated level alias"})
+        for series in terms:
+            cell = values.get((quarter, series), {})
+            row[series + "_value"] = cell.get("value")
+            row[series + "_source_sha256"] = cell.get("source_sha256")
+        rows.append(row)
+    return rows
+
+
+def ledger_gate_passed(summary: dict, gate: str) -> bool:
+    """An unavailable stock check cannot veto the separate transaction measure."""
+    if gate == "transaction_ledger_admissible":
+        return summary[gate] is True
+    if gate in {"stock_source_consistency", "independent_stock_validation"}:
+        return summary[gate] == "pass"
+    raise ValueError(f"Unsupported ledger gate: {gate}")
+
+
 def build_ledger(root: Path, spec_path: Path, output: Path) -> dict:
     spec = yaml.safe_load(spec_path.read_text())
     values, metadata, receipt = load_archive(root)
@@ -235,9 +277,13 @@ def build_ledger(root: Path, spec_path: Path, output: Path) -> dict:
     complete_leaves = sum(all(row["source_consistency_status"] != "missing_inputs" for row in stock_checks if row["leaf_code"] == code)
                           for code in contracts)
     stock_certified = bool(stock_checks) and all(row["status"] == "pass" for row in stock_checks)
+    source_counts = dict(Counter(row["source_consistency_status"] for row in stock_checks))
+    source_status = ("fail" if source_counts.get("fail") else "pass" if source_counts.get("pass") == len(stock_checks)
+                     else "partial" if source_counts.get("pass") else "unavailable")
+    gold_checks = gold_sdr_source_consistency(quarters, values, metadata)
     output.mkdir(parents=True, exist_ok=True)
     for filename, records in [("ledger.csv", rows), ("quarterly.csv", quarterly), ("crosswalk.csv", crosswalk), ("certification.csv", checks),
-                              ("deposit_bridge.csv", deposits), ("stock_bridges.csv", stock_checks)]:
+                              ("deposit_bridge.csv", deposits), ("stock_bridges.csv", stock_checks), ("gold_sdr_source_consistency.csv", gold_checks)]:
         write_csv(pd.DataFrame(records), output / filename)
     summary = {
         "vintage": vintage, "sample_start": quarters[0], "sample_end": quarters[-1], "quarters": len(quarters),
@@ -248,13 +294,21 @@ def build_ledger(root: Path, spec_path: Path, output: Path) -> dict:
         "checks": {name: dict(Counter(row["status"] for row in checks if row["check"] == name)) for name in identities},
         "stock_checks": dict(Counter(row["status"] for row in stock_checks)),
         "transaction_checks_passed": transaction_passed,
+        "transaction_ledger_admissible": transaction_passed and len(identities) == 11 and quarters == pd.period_range("2002Q1", "2025Q4", freq="Q").astype(str).tolist(),
+        "transaction_admission_scope": "this vintage and configured sample; system admission requires both frozen vintages",
+        "stock_source_consistency": source_status,
+        "stock_source_consistency_counts": source_counts,
+        "independent_stock_validation": "pass" if stock_certified else "unavailable",
+        "recent_external_position_change_check": "not_run_in_ledger_build",
+        "gold_sdr_source_consistency": {
+            "transaction_composite_counts": dict(Counter(row["status"] for row in gold_checks)),
+            "dated_level_alias_status": "unestablished",
+            "claim_boundary": "Current composite formula and retained SDR-allocation levels do not establish a dated gold/SDR stock alias",
+        },
         "stock_expected_leaves": len(contracts), "stock_complete_leaves": complete_leaves,
         "stock_level_complete_rows": sum(row["level_inputs_available"] for row in stock_checks),
         "stock_level_complete_leaves": sum(all(row["level_inputs_available"] for row in stock_checks if row["leaf_code"] == code)
                                            for code in contracts),
-        "stock_certification": "certified" if stock_certified else "unavailable",
-        "full_item3_certified": transaction_passed and stock_certified,
-        "certified": transaction_passed and stock_certified,
         "deposit_coverage": "Checkable and time-deposit issuer bridges explicitly tested; interbank claims remain a separate claim class",
         "claim_boundary": spec["claim_boundary"],
         "pending_final_vintage": spec["pending_vintage"],

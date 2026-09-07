@@ -31,7 +31,7 @@ from rowflow.regressions import (
 from rowflow.reports import write_rowflow_report
 from rowflow.validation import has_errors, print_messages, validate_rowflow_package
 from rowflow.z1_archive import acquire_alfred_series, acquire_archive
-from rowflow.z1_ledger import build_ledger, write_revision_bridge
+from rowflow.z1_ledger import build_ledger, ledger_gate_passed, write_revision_bridge
 
 
 def _root(value: str | None) -> Path:
@@ -102,6 +102,8 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--input", required=True, help="Dated source directory with receipt.json.")
     p.add_argument("--spec", default="config/row_ledger.yml")
     p.add_argument("--output", required=True, help="Diagnostic output directory.")
+    p.add_argument("--gate", choices=["transaction_ledger_admissible", "stock_source_consistency", "independent_stock_validation"],
+                   default="transaction_ledger_admissible", help="Gate governing the exit status; other checks remain visible.")
 
     p = sub.add_parser("write-z1-revision-bridge", help="Compare two dated ledger exports by stable series ID.")
     p.add_argument("--frozen", required=True)
@@ -273,7 +275,7 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "build-z1-ledger":
             summary = build_ledger(Path(args.input), Path(args.spec), Path(args.output))
             print(json.dumps(summary, indent=2))
-            return 0 if summary["certified"] else 1
+            return 0 if ledger_gate_passed(summary, args.gate) else 1
 
         if args.command == "write-z1-revision-bridge":
             frame = write_revision_bridge(Path(args.frozen), Path(args.revised), Path(args.output))

@@ -23,8 +23,25 @@ certification. Its Treasury cross-equation reconstruction is independent of the
 published asset total, but uses the same Z.1 system and discrepancy; it is not an
 external independent check. Every configured stock leaf is reported even when
 its level, revaluation, other-volume adjustment, or valuation basis is missing
-or unestablished. Source-published residual adjustments provide acquisition
+or unestablished. Source-published residual adjustments provide source
 consistency, not independent stock certification. No adjustment is manufactured.
+
+`build-z1-ledger` reports `transaction_ledger_admissible` separately from
+`stock_source_consistency` and `independent_stock_validation`. Its `--gate`
+selects which status determines the exit code; the default is the transaction
+gate. Transaction-system admission requires all 11 checks in all 96 quarters
+of both frozen vintages. The unavailable independent stock check does not veto
+an estimator that consumes only transactions. Claims about accumulated positions
+or ownership persistence still require their own stock evidence.
+
+The gold/SDR diagnostic checks the [Fed's current composite-flow formula](https://www.federalreserve.gov/apps/fof/SeriesAnalyzer.aspx?s=FU263011105&t=)
+against dated cells and reports missing components. The retained SDR-allocation
+level has a narrower stated concept: the [March stock table](https://www.federalreserve.gov/releases/z1/20260319/html/l133.htm)
+excludes monetary gold. No undocumented dated stock alias is substituted.
+FR and FV are [complementary residual concepts](https://www.federalreserve.gov/apps/fof/SeriesStructure.aspx),
+not two independent observations. `recent_external_position_change_check` is
+`not_run_in_ledger_build`; a separate recent-period comparison cannot certify
+the full historical stock perimeter.
 
 ## Claim boundary
 
