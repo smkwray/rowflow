@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import pandas as pd
+import pytest
 
 from rowflow.ratewall_contracts import build_ratewall_foreign_route_support_contract
 
@@ -44,3 +45,24 @@ def test_foreign_route_support_keeps_tic_and_z1_regimes_separate() -> None:
     ].eq("foreign_iro").any()
     assert rows["blocked_use"].str.contains("final_current_demand").all()
     assert rows["blocked_use"].str.contains("domestic_private_route_split").all()
+
+
+@pytest.mark.parametrize("value", [None, "", "not a number", float("nan"), float("inf")])
+def test_foreign_route_support_rejects_missing_observations(value) -> None:
+    panel = pd.DataFrame([{"month": "2025-01", "tic_foreign_total_with_iro_treasury_net_flow_usd_millions": value}])
+    with pytest.raises(ValueError, match="Missing or nonfinite source value"):
+        build_ratewall_foreign_route_support_contract(rowflow_panel=panel)
+
+
+def test_zero_net_flow_does_not_imply_zero_component_shares() -> None:
+    panel = pd.DataFrame([{
+        "month": "2025-01", "quarter": "2025Q1",
+        "tic_foreign_official_treasury_net_flow_usd_millions": 10.0,
+        "tic_foreign_private_treasury_net_flow_usd_millions": -10.0,
+        "tic_international_regional_organizations_treasury_net_flow_usd_millions": 0.0,
+        "tic_foreign_total_with_iro_treasury_net_flow_usd_millions": 0.0,
+        "tic_source_regime": "expanded_slt_2023_on",
+    }])
+    rows = build_ratewall_foreign_route_support_contract(rowflow_panel=panel)
+    assert rows["share_of_foreign_total"].eq("").all()
+    assert rows["amount_usd_millions"].tolist() == ["10", "-10", "0", "0"]

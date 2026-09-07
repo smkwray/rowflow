@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from pathlib import Path
 
 import pandas as pd
@@ -50,23 +51,28 @@ Z1_COMPONENTS = {
 
 def _num(row: pd.Series, column: str) -> float:
     value = pd.to_numeric(pd.Series([row.get(column)]), errors="coerce").iloc[0]
-    return 0.0 if pd.isna(value) else float(value)
+    if pd.isna(value) or not math.isfinite(float(value)):
+        raise ValueError(f"Missing or nonfinite source value: {column}")
+    return float(value)
 
 
 def _fmt(value: float) -> str:
+    if math.isnan(value):
+        return ""
     return f"{value:.6f}".rstrip("0").rstrip(".")
 
 
 def _tic_rows(panel: pd.DataFrame, producer_artifact: str) -> list[dict[str, str]]:
     rows: list[dict[str, str]] = []
     for _, row in panel.iterrows():
-        month = str(row.get("month", ""))
-        if not month:
-            continue
+        raw_month = row.get("month")
+        if pd.isna(raw_month) or not str(raw_month).strip():
+            raise ValueError("Missing source month")
+        month = str(pd.Period(raw_month, freq="M"))
         denominator = _num(row, "tic_foreign_total_with_iro_treasury_net_flow_usd_millions")
         for component, column in TIC_COMPONENTS.items():
             amount = _num(row, column)
-            share = amount / denominator if denominator else 0.0
+            share = amount / denominator if denominator else float("nan")
             rows.append(
                 {
                     "support_row_id": f"rowflow::tic::{month}::{component}",
@@ -105,13 +111,14 @@ def _tic_rows(panel: pd.DataFrame, producer_artifact: str) -> list[dict[str, str
 def _z1_rows(panel: pd.DataFrame, producer_artifact: str) -> list[dict[str, str]]:
     rows: list[dict[str, str]] = []
     for _, row in panel.iterrows():
-        quarter = str(row.get("quarter", ""))
-        if not quarter:
-            continue
+        raw_quarter = row.get("quarter")
+        if pd.isna(raw_quarter) or not str(raw_quarter).strip():
+            raise ValueError("Missing source quarter")
+        quarter = str(pd.Period(raw_quarter, freq="Q"))
         denominator = _num(row, "z1_foreign_total_treasury_transaction_q_usd_millions")
         for component, column in Z1_COMPONENTS.items():
             amount = _num(row, column)
-            share = amount / denominator if denominator else 0.0
+            share = amount / denominator if denominator else float("nan")
             rows.append(
                 {
                     "support_row_id": f"rowflow::z1::{quarter}::{component}",
