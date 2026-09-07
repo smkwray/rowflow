@@ -114,3 +114,69 @@ def test_stock_bridge_never_falls_back_or_certifies_residual_adjustments() -> No
     assert absent["other_volume_provenance"] == "missing"
     assert absent["other_volume_value_usd_millions"] is None
     assert absent["gap_usd_millions"] is None
+
+
+@pytest.mark.parametrize("code", ["313011303", "263192305"])
+@pytest.mark.parametrize("vintage,prefix", [("2026-03-19", "LM"), ("2026-06-11", "FL")])
+def test_stock_mapping_uses_declared_vintage_even_when_both_prefixes_exist(code, vintage, prefix):
+    import yaml
+
+    from rowflow.z1_ledger import _stock_bridge, _stock_contracts_for_vintage
+
+    spec = yaml.safe_load((Path(__file__).resolve().parents[1] / "config/row_ledger.yml").read_text())
+    contract = _stock_contracts_for_vintage(spec, vintage)[code]
+    assert contract["level_series"] == prefix + code + ".Q"
+    cells = {}
+    for quarter, value in [("2024Q4", 10), ("2025Q1", 12)]:
+        for candidate in ["FL", "LM"]:
+            cells[(quarter, candidate + code + ".Q")] = {
+                "value": value if candidate == prefix else value * 100,
+                "rounding_increment": 0.01,
+            }
+    for candidate, value in [("FU", 2), ("FR", 0), ("FV", 0)]:
+        cells[("2025Q1", candidate + code + ".Q")] = {"value": value, "rounding_increment": 0.01}
+    row = _stock_bridge(code, "2025Q1", contract, cells)
+    assert row["level_inputs_available"] is True
+    assert row["gap_usd_millions"] == 0
+    assert row["source_consistency_status"] == "pass"
+    assert row["status"] == "unavailable"  # Unknown adjustment derivation is not independent evidence.
+    del cells[("2025Q1", prefix + code + ".Q")]
+    missing = _stock_bridge(code, "2025Q1", contract, cells)
+    assert missing["level_inputs_available"] is False
+    assert missing["status"] == "missing_inputs"  # Never substitute the other prefix.
+
+
+@pytest.mark.parametrize("mutation", ["missing_vintage", "unknown_vintage", "cross_code"])
+def test_stock_mapping_rejects_undeclared_vintage_or_cross_code(mutation):
+    import yaml
+
+    from rowflow.z1_ledger import _stock_contracts_for_vintage
+
+    spec = yaml.safe_load((Path(__file__).resolve().parents[1] / "config/row_ledger.yml").read_text())
+    vintage = "2026-03-19"
+    if mutation == "missing_vintage":
+        del spec["stock_contracts"]["313011303"]["level_series_by_vintage"][vintage]
+    elif mutation == "cross_code":
+        spec["stock_contracts"]["263011105"]["level_series_by_vintage"][vintage] = "LM313111303.Q"
+    else:
+        vintage = "2026-09-11"
+    with pytest.raises(ValueError):
+        _stock_contracts_for_vintage(spec, vintage)
+
+
+def test_sdr_allocation_stock_does_not_silently_fill_broader_gold_sdr_leaf():
+    import yaml
+
+    from rowflow.z1_ledger import _stock_bridge, _stock_contracts_for_vintage
+
+    spec = yaml.safe_load((Path(__file__).resolve().parents[1] / "config/row_ledger.yml").read_text())
+    contract = _stock_contracts_for_vintage(spec, "2026-03-19")["263011105"]
+    cells = {(quarter, series): {"value": 0, "rounding_increment": 1}
+             for quarter in ["2024Q4", "2025Q1"]
+             for series in ["LM313111303.Q", "FL313111303.Q", "FU263011105.Q", "FR263011105.Q", "FV263011105.Q"]}
+    row = _stock_bridge("263011105", "2025Q1", contract, cells)
+    assert row["level_series"] is None
+    assert row["level_inputs_available"] is False
+    assert row["status"] == "missing_inputs"
+    assert row["gap_usd_millions"] is None
+    assert "excludes monetary gold" in row["mapping_source"]

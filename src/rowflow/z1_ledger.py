@@ -104,6 +104,32 @@ def _terms(*blocks: tuple[list[str], float]) -> dict[str, float]:
     return {series: value for series, value in coefficients.items() if value}
 
 
+def _stock_contracts_for_vintage(spec: dict, vintage: str) -> dict:
+    """Resolve only the declared dated identifiers; never substitute another prefix."""
+    if vintage not in spec["ledger_tables"]:
+        raise ValueError(f"Unsupported stock mapping vintage: {vintage}")
+    contracts = spec["stock_contracts"]
+    resolved = {}
+    for code, contract in contracts.items():
+        for field in ["level_series_by_vintage", "valuation_basis", "mapping_source", "revaluation_series",
+                      "revaluation_derivation", "other_volume_series", "other_volume_derivation"]:
+            if field not in contract or not contract[field]:
+                raise ValueError(f"Missing stock contract field: {code} {field}")
+        levels = contract["level_series_by_vintage"]
+        if not isinstance(levels, dict) or set(levels) != set(spec["ledger_tables"]):
+            raise ValueError(f"Stock level mapping must name every supported vintage: {code}")
+        if any(level is not None and (not isinstance(level, str) or not re.fullmatch(r"(?:FL|LM)" + code + r"\.Q", level))
+               for level in levels.values()):
+            raise ValueError(f"Invalid explicit stock level series: {code}")
+        for name, prefix in [("revaluation", "FR"), ("other_volume", "FV")]:
+            if contract[name + "_series"] != prefix + code + ".Q":
+                raise ValueError(f"Invalid leaf adjustment series: {code}")
+            if contract[name + "_derivation"] not in {"unestablished", "fed_computed_residual", "independently_source_derived"}:
+                raise ValueError(f"Invalid adjustment provenance: {code}")
+        resolved[code] = contract | {"level_series": levels[vintage]}
+    return resolved
+
+
 def _stock_bridge(code: str, quarter: str, contract: dict, values: dict) -> dict:
     level = contract["level_series"]
     previous = str(pd.Period(quarter, freq="Q") - 1)
@@ -116,6 +142,7 @@ def _stock_bridge(code: str, quarter: str, contract: dict, values: dict) -> dict
         expanded[(quarter, previous_key)] = values[(previous, level)]
     result = check_identity("stock_bridge_" + code, quarter, terms, expanded)
     result.update({"leaf_code": code, "level_series": level, "previous_quarter": previous,
+                   "level_inputs_available": all(expanded.get((quarter, key), {}).get("value") is not None for key in [level_key, previous_key]),
                    "valuation_basis": contract["valuation_basis"], "mapping_source": contract["mapping_source"],
                    "source_consistency_status": result["status"]})
     for name, series in [("revaluation", fr), ("other_volume", fv)]:
@@ -150,18 +177,7 @@ def build_ledger(root: Path, spec_path: Path, output: Path) -> dict:
     contracts = spec["stock_contracts"]
     if set(contracts) != set(assets + liabilities + equity):
         raise ValueError("Stock contracts must explicitly cover every ledger leaf")
-    for code, contract in contracts.items():
-        for field in ["level_series", "valuation_basis", "mapping_source", "revaluation_series",
-                      "revaluation_derivation", "other_volume_series", "other_volume_derivation"]:
-            if field not in contract or (field != "level_series" and not contract[field]):
-                raise ValueError(f"Missing stock contract field: {code} {field}")
-        if contract["level_series"] is not None and not re.fullmatch(r"(?:FL|LM)" + code + r"\.Q", contract["level_series"]):
-            raise ValueError(f"Invalid explicit stock level series: {code}")
-        for name, prefix in [("revaluation", "FR"), ("other_volume", "FV")]:
-            if contract[name + "_series"] != prefix + code + ".Q":
-                raise ValueError(f"Invalid leaf adjustment series: {code}")
-            if contract[name + "_derivation"] not in {"unestablished", "fed_computed_residual", "independently_source_derived"}:
-                raise ValueError(f"Invalid adjustment provenance: {code}")
+    contracts = _stock_contracts_for_vintage(spec, vintage)
     totals, resources = spec["totals"], spec["resources"]
     roles = {code: role for role, codes in [("asset_leaf", assets), ("liability_leaf", liabilities), ("equity_leaf", equity)] for code in codes}
     roles.update(dict.fromkeys(totals.values(), "total"))
@@ -233,6 +249,9 @@ def build_ledger(root: Path, spec_path: Path, output: Path) -> dict:
         "stock_checks": dict(Counter(row["status"] for row in stock_checks)),
         "transaction_checks_passed": transaction_passed,
         "stock_expected_leaves": len(contracts), "stock_complete_leaves": complete_leaves,
+        "stock_level_complete_rows": sum(row["level_inputs_available"] for row in stock_checks),
+        "stock_level_complete_leaves": sum(all(row["level_inputs_available"] for row in stock_checks if row["leaf_code"] == code)
+                                           for code in contracts),
         "stock_certification": "certified" if stock_certified else "unavailable",
         "full_item3_certified": transaction_passed and stock_certified,
         "certified": transaction_passed and stock_certified,
