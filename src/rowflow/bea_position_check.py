@@ -62,7 +62,33 @@ def normalize_bea(payload: dict, categories: list[str]) -> tuple[pd.DataFrame, d
 
 
 def _sum_required(values: list[float | None]) -> float | None:
-    return None if any(v is None or pd.isna(v) for v in values) else sum(values)
+    return None if not values or any(v is None or pd.isna(v) for v in values) else sum(values)
+
+
+def checked_z1_units(cells: dict, metadata: dict, spec: dict) -> tuple[dict, dict]:
+    """Reject incompatible units; source cells lacking unit metadata are unavailable."""
+    checked, status = cells.copy(), {}
+    fields = {"z1_flow": ("FU", "transactions, not seasonally adjusted"),
+              "z1_level": (("LM", "FL"), "amounts outstanding end of period"),
+              "z1_revaluation": ("FR", "revaluation"),
+              "z1_other_volume": ("FV", "volume")}
+    for mapping in spec["categories"].values():
+        if not mapping["bea_categories"]:
+            raise ValueError("BEA category mapping must be nonempty")
+        for field, (prefix, concept) in fields.items():
+            series = mapping[field]
+            if not series.startswith(prefix):
+                raise ValueError(f"Invalid mapped source prefix: {series}")
+            units = metadata.get(series, {}).get("units")
+            status[series] = {"source_units": units, "status": "validated" if units else "unavailable_source_units"}
+            if units and (not units.startswith("Millions of dollars;") or concept not in units
+                          or "annual" in units.lower()):
+                raise ValueError(f"Incompatible Z.1 source units: {series}")
+            if not units:
+                for key, cell in cells.items():
+                    if key[1] == series:
+                        checked[key] = cell | {"value": None}
+    return checked, status
 
 
 def compare(bea: pd.DataFrame, cells: dict, spec: dict, vintage: str) -> pd.DataFrame:
@@ -72,6 +98,8 @@ def compare(bea: pd.DataFrame, cells: dict, spec: dict, vintage: str) -> pd.Data
     for quarter in pd.period_range(spec["start_quarter"], spec["end_quarter"], freq="Q"):
         q, previous = str(quarter), str(quarter - 1)
         for category, mapping in spec["categories"].items():
+            if not mapping["bea_categories"]:
+                raise ValueError("BEA category mapping must be nonempty")
             def value(series: str, period: str = q) -> float | None:
                 return cells.get((period, series), {}).get("value")
 
@@ -113,10 +141,11 @@ def main() -> None:
     bea, metadata = normalize_bea(json.loads(args.bea.read_text()), categories)
     frames, inputs = [], {"bea_sha256": sha256_file(args.bea), "spec_sha256": sha256_file(args.spec), "z1": []}
     for root in args.z1:
-        cells, _, receipt = load_archive(root)
+        cells, source_metadata, receipt = load_archive(root)
+        cells, unit_status = checked_z1_units(cells, source_metadata, spec)
         frames.append(compare(bea, cells, spec, receipt["vintage"]))
         inputs["z1"].append({"vintage": receipt["vintage"], "receipt_sha256": sha256_file(root / "receipt.json"),
-                            "source_files": receipt["retained_files"],
+                            "source_files": receipt["retained_files"], "mapped_source_units": unit_status,
                             "alfred_receipt_sha256": sha256_file(root / "alfred/receipt.json") if (root / "alfred/receipt.json").exists() else None})
     comparison = pd.concat(frames, ignore_index=True)
     summary = {"recent_external_position_change_check": "partial", "independent_stock_validation": "unavailable",

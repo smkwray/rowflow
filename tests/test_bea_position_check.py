@@ -3,7 +3,7 @@ import json
 import pandas as pd
 import pytest
 
-from rowflow.bea_position_check import compare, normalize_bea
+from rowflow.bea_position_check import _sum_required, checked_z1_units, compare, normalize_bea
 
 
 def _payload(value="10", adjustment="QNSA"):
@@ -65,3 +65,21 @@ def test_aggregate_needs_every_cell_and_missing_adjustments_stay_unavailable():
     assert set(result.independent_stock_validation) == {"unavailable"}
     result = compare(bea.iloc[:1], cells, spec, "dated").set_index("measurement")
     assert result.loc["position", "numeric_comparison"] == "unavailable"
+
+
+def test_z1_units_reject_annualized_or_scaled_sources_and_empty_mapping():
+    mapping = {"bea_categories": ["Treasuries"], "z1_flow": "FU1.Q", "z1_level": "LM1.Q",
+               "z1_revaluation": "FR1.Q", "z1_other_volume": "FV1.Q"}
+    spec = {"categories": {"Treasuries": mapping}}
+    cells = {("2023Q1", "FU1.Q"): {"value": 10}}
+    for units in ["Billions of dollars; transactions, not seasonally adjusted",
+                  "Millions of dollars; transactions, not seasonally adjusted, annual rate"]:
+        with pytest.raises(ValueError, match="source units"):
+            checked_z1_units(cells, {"FU1.Q": {"units": units}}, spec)
+    checked, status = checked_z1_units(cells, {}, spec)
+    assert checked[("2023Q1", "FU1.Q")]["value"] is None
+    assert status["FU1.Q"]["status"] == "unavailable_source_units"
+    mapping["bea_categories"] = []
+    with pytest.raises(ValueError, match="nonempty"):
+        checked_z1_units(cells, {}, spec)
+    assert _sum_required([]) is None
