@@ -1,0 +1,44 @@
+start_quarter: 2023Q1
+end_quarter: 2025Q4
+units: USD_millions
+seasonal_adjustment: QNSA
+claim_boundary: Recent partial source comparison only; no independent historical stock certification or funding attribution.
+vintage_boundary: BEA June 24, 2026 postdates both frozen Z.1 vintages; differences combine possible revisions and unresolved perimeter differences.
+sources:
+  bea_table: https://apps.bea.gov/iTable/?isuri=1&product=5&reqid=62&step=6&tablelist=146
+  quarterly_scope: https://www.bea.gov/data/international/new-international-data-tables
+  fed_march: https://www.federalreserve.gov/releases/z1/20260319/html/l133.htm
+  fed_june: https://www.federalreserve.gov/releases/z1/20260611/html/s2_s.htm
+categories:
+  treasury_securities:
+    bea_categories:
+      - Treasury bills and certificates (liabilities)
+      - Treasury bonds and notes (liabilities)
+    z1_flow: FU263061105.Q
+    z1_level: LM263061105.Q
+    z1_revaluation: FR263061105.Q
+    z1_other_volume: FV263061105.Q
+    mapping_status: closest_instrument_comparison
+    boundary: BEA U.S. Treasury liabilities reverse to ROW Treasury assets; bills plus notes/bonds. Similar instrument labels do not establish identical vintage, territorial coverage, or source independence.
+  trade_credit_row_assets:
+    bea_categories: [Trade credit and advances (liabilities)]
+    z1_flow: FU263070005.Q
+    z1_level: LM263070005.Q
+    z1_revaluation: FR263070005.Q
+    z1_other_volume: FV263070005.Q
+    mapping_status: perimeter_equivalence_unestablished
+    boundary: BEA U.S. trade-credit liabilities versus Z.1 ROW trade receivables. Labels alone do not reconcile reporting and instrument perimeters; numeric differences are not a validation failure or identified revision.
+  trade_credit_row_liabilities:
+    bea_categories: [Trade credit and advances (assets)]
+    z1_flow: FU263170005.Q
+    z1_level: LM263170005.Q
+    z1_revaluation: FR263170005.Q
+    z1_other_volume: FV263170005.Q
+    mapping_status: perimeter_equivalence_unestablished
+    boundary: BEA U.S. trade-credit assets versus Z.1 ROW trade-credit liabilities. Labels alone do not reconcile reporting and instrument perimeters.
+unavailable_leaf_detail:
+  - BEA Table 1.3 does not provide the full Z.1 36-leaf taxonomy, including the domestic deposit-issuer split.
+  - BEA functional-category totals cannot be equated to Z.1 ROW totals without a separate territorial, derivative, reserve, and direct-investment bridge.
+  - Missing or not-applicable BEA price/exchange components remain unavailable; they are never filled with zero.
+  - Missing Z.1 FV remains unavailable; a BEA difference is never installed as a balancing adjustment.
+  - Quarterly decomposition before 2023Q1 is unavailable; recent agreement cannot certify 2002–2022.
