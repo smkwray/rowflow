@@ -172,6 +172,8 @@ make real-package
 
 The real-data target uses the project external virtual environment by default. It builds the TIC panel from the reused local SLT cache, downloads the public legacy TIC `tressect.txt` bridge for pre-2023 long-term Treasury bonds and notes, downloads public FRED Z.1 `FU` transaction CSVs plus companion `FL` level series, and preserves source-regime labels before writing the real package outputs. The report step writes a compact results table and a stock-vs-flow figure for paper/deck use.
 
+`BUILD_ROOT=<dir>` writes every downloaded input, sibling copy, derived panel, and output under `<dir>` and leaves the default artifacts untouched; `SLT=<file>` replaces the sibling SLT Table 3 cache with another copy of the same Treasury file.
+
 For the real determinant package, run:
 
 ```bash

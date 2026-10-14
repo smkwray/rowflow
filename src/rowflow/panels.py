@@ -123,7 +123,10 @@ def _normalize_tic_from_slt_table3(df: pd.DataFrame) -> pd.DataFrame:
         if subset.empty:
             continue
         subset["month"] = normalize_month(subset["date"])
-        if (subset["month"] < "2023-02").any():
+        # Treasury's file carries months before the expanded series whose total-Treasury
+        # net flow is "n.a."; they never become panel rows. A reported total flow may not
+        # predate February 2023.
+        if (subset.loc[subset["for_treas_net"].notna(), "month"] < "2023-02").any():
             raise ValueError("Expanded SLT coverage starts in February 2023")
         if label == "international_regional_organizations":
             prefix = "tic_international_regional_organizations"

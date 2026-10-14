@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pandas as pd
+import pytest
 from conftest import fixture_path
 
 from rowflow.panels import (
@@ -37,6 +38,40 @@ def test_build_tic_row_panel_from_slt_table3_fixture(tmp_path: Path) -> None:
     assert panel.loc[0, TIC_TOTAL_WITH_IRO] == 38
     assert panel.loc[0, "tic_source_regime"] == "expanded_slt_2023_on"
     assert "tic_foreign_official_short_treasury_net_flow_usd_millions" in panel.columns
+
+
+def _write_slt(path: Path, rows: list[str]) -> Path:
+    header = "country\tcountry_code\tdate\tfor_treas_pos\tfor_treas_net\tfor_lt_treas_pos\tfor_lt_treas_net\tfor_lt_treas_valchg\tfor_st_treas_pos\tfor_st_treas_net"
+    private = "Of Which: Foreign Non-Official\t99991\t2023-02\t1500\t25\t1200\t20\t0\t300\t5"
+    path.write_text("\n".join([header, *rows, private]) + "\n", encoding="utf-8")
+    return path
+
+
+def test_slt_months_without_total_flow_do_not_enter_expanded_flow_regime(tmp_path: Path) -> None:
+    # Treasury's file carries holdings back to 2020 with "n.a." total-Treasury net flows
+    # (IRO rows even report short-term flows). Those months are not expanded-regime flow
+    # observations, so the real file must still build and start in February 2023.
+    slt = _write_slt(
+        tmp_path / "slt.txt",
+        [
+            "Of Which: Foreign Official\t99990\t2023-01\t1000\tn.a.\t800\tn.a.\tn.a.\t200\tn.a.",
+            "Total IROs\t79995\t2023-01\t52963\tn.a.\t46453\tn.a.\tn.a.\t6510\t-1945",
+            "Of Which: Foreign Official\t99990\t2023-02\t1010\t10\t806\t6\t0\t204\t4",
+        ],
+    )
+    panel = build_tic_row_panel(slt, tmp_path / "out.csv")
+    assert list(panel["month"]) == ["2023-02"]
+    assert panel.loc[0, "tic_source_regime"] == "expanded_slt_2023_on"
+
+
+def test_slt_reported_flow_before_february_2023_fails_closed(tmp_path: Path) -> None:
+    # A reported pre-break flow would silently pool the legacy long-term and expanded regimes.
+    slt = _write_slt(
+        tmp_path / "slt.txt",
+        ["Of Which: Foreign Official\t99990\t2023-01\t1000\t7\t800\t5\t0\t200\t2"],
+    )
+    with pytest.raises(ValueError, match="February 2023"):
+        build_tic_row_panel(slt, tmp_path / "out.csv")
 
 
 def test_build_tic_row_panel_from_legacy_tressect_fixture(tmp_path: Path) -> None:
