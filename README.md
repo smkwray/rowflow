@@ -1,10 +1,10 @@
 # rowflow
 
-`rowflow` is a descriptive rest-of-world Treasury absorption accounting package for the Treasury Deposit Channel system. In this project family, **TDC** means the Treasury Deposit Channel as defined upstream by [`smkwray/tdcest`](https://github.com/smkwray/tdcest), the canonical quarterly estimator used as the TDC anchor.
+`rowflow` is a descriptive rest-of-world Treasury absorption accounting package for the Treasury Deposit Component system. In this project family, **TDC** means the Treasury Deposit Component as defined upstream by [`smkwray/tdcest`](https://github.com/smkwray/tdcest), the canonical quarterly estimator used as the TDC anchor.
 
 The package splits foreign Treasury absorption into **foreign official**, **foreign private**, and separately tracked international/regional organization components, then joins that split to Treasury maturity composition and domestic liquidity diagnostics. The goal is to clarify *who absorbed Treasury supply*. It is not a causal design for domestic liquidity effects.
 
-The Phase 2 determinant layer adds source-regime ledgers, episode absorption accounting, a monthly determinant panel, and first-pass official/private determinant tables. These outputs are exploratory descriptive associations, not causal demand curves.
+The determinant layer includes source-regime ledgers, episode absorption accounting, a monthly determinant panel, and official/private determinant tables. These outputs are exploratory descriptive associations, not causal demand curves.
 
 ## Output scope
 
@@ -64,23 +64,26 @@ Not allowed without a stronger design:
 
 ## Install
 
-Create a virtual environment outside the repo, then install the package in editable mode.
+Python 3.11 or later is required. From the repository root:
 
 ```bash
-python -m venv ~/venvs/rowflow
-source ~/venvs/rowflow/bin/activate
+python -m venv .venv
+source .venv/bin/activate
 python -m pip install -e '.[dev]'
 ```
 
 Run the fixture-backed tests:
 
 ```bash
-python -m pytest
+python -B -m pytest -q
+ruff check .
+rowflow validate-config
 ```
 
 ## Command map
 
-These commands are implemented as CLI entrypoints and can be run against fixture data immediately.
+These examples require the named input files. The test suite runs the fixture-backed
+pipeline without external data.
 
 ```bash
 rowflow validate-config
@@ -170,7 +173,8 @@ For a local real-data backend build with sibling repositories present, run:
 make real-package
 ```
 
-The real-data target uses the project external virtual environment by default. It builds the TIC panel from the reused local SLT cache, downloads the public legacy TIC `tressect.txt` bridge for pre-2023 long-term Treasury bonds and notes, downloads public FRED Z.1 `FU` transaction CSVs plus companion `FL` level series, and preserves source-regime labels before writing the real package outputs. The report step writes a compact results table and a stock-vs-flow figure for paper/deck use.
+The real-data target uses the activated environment; `PYTHON`, `RUFF`, and
+`ROWFLOW` can override the executables. It builds the TIC panel from the reused local SLT cache, downloads the public legacy TIC `tressect.txt` bridge for pre-2023 long-term Treasury bonds and notes, downloads public FRED Z.1 `FU` transaction CSVs plus companion `FL` level series, and preserves source-regime labels before writing the real package outputs. The report step writes a compact results table and a stock-vs-flow figure for presentation.
 
 `BUILD_ROOT=<dir>` writes every downloaded input, sibling copy, derived panel, and output under `<dir>` and leaves the default artifacts untouched; `SLT=<file>` replaces the sibling SLT Table 3 cache with another copy of the same Treasury file.
 
@@ -180,7 +184,7 @@ For the real determinant package, run:
 make real-determinants
 ```
 
-This target runs `make real-package`, writes the determinant ledger, episode table, determinant panel, first-pass determinant table, compact presentation CSV/Markdown, determinant report, manifest, and package validation. The determinant tables use OLS coefficients with lag-3 Newey–West/HAC standard errors and asymptotic-normal p-values and label inference as `hac_newey_west_lag_3` under the default monthly spec. FRED sidecars add Treasury yield, term-premium, broad-dollar, VIX, and Fed Treasury holdings controls.
+This target runs `make real-package`, writes the determinant ledger, episode table, determinant panel, descriptive determinant table, compact presentation CSV/Markdown, determinant report, manifest, and package validation. The determinant tables use OLS coefficients with lag-3 Newey–West/HAC standard errors and asymptotic-normal p-values and label inference as `hac_newey_west_lag_3` under the default monthly spec. FRED sidecars add Treasury yield, term-premium, broad-dollar, VIX, and Fed Treasury holdings controls.
 
 ## Source strategy
 
@@ -191,7 +195,7 @@ This target runs `make real-package`, writes the determinant ledger, episode tab
 - [`liqsub`](https://github.com/smkwray/liqsub): deposits, MMFs, ON RRP, reserves, TGA, and plumbing diagnostics.
 - [`bankcap`](https://github.com/smkwray/bankcap): H.8 bank-group mechanism context.
 - [`tdcest`](https://github.com/smkwray/tdcest): canonical quarterly TDC anchors.
-- [`tdcpass`](https://github.com/smkwray/tdcpass): pass-through context.
+- [`tdcpass`](https://github.com/smkwray/tdcpass): arithmetic and measurement-boundary context.
 - [`tdcatlas`](https://github.com/smkwray/tdcatlas): episode framing.
 - [`qrawatch`](https://github.com/smkwray/qrawatch): QRA, Treasury debt-stock, and optional FRED market sidecars.
 - [`fp-tdc`](https://github.com/smkwray/fp-tdc): optional local FRED/Z.1 level cache for official/private ROW Treasury level context.
@@ -210,6 +214,9 @@ rowflow/
   output/                 # ignored local reports, figures, tables, manifests, and demos
 ```
 
-## Backend state
+## Interpretation
 
-The backend and first-pass determinant layer are complete enough for paper/deck support. Remaining work is downstream presentation, paper integration, richer source-side extensions, optional episode overlays from sibling projects, and any stronger identification design. The public package should continue to avoid individual-holder identification and causal domestic-liquidity claims unless a separate identification design is added.
+The package supports descriptive source reconciliation and conditional
+associations. It does not identify individual beneficial owners or causal
+domestic-liquidity effects. See [source notes](docs/source_notes.md) and the
+[ROW ledger contract](docs/row_ledger.md) for the transaction and stock boundaries.

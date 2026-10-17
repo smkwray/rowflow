@@ -47,3 +47,7 @@ output/**
 .DS_Store
 .idea/
 .vscode/
+
+# Private local configuration
+.private-denylist
+.*-private-denylist

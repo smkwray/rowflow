@@ -1,8 +1,8 @@
 .PHONY: test lint validate-config smoke-fixtures real-package real-determinants
 
-PYTHON ?= $(HOME)/venvs/rowflow/bin/python
-RUFF ?= $(HOME)/venvs/rowflow/bin/ruff
-ROWFLOW ?= $(HOME)/venvs/rowflow/bin/rowflow
+PYTHON ?= python
+RUFF ?= ruff
+ROWFLOW ?= rowflow
 # Real builds write under BUILD_ROOT; a versioned root (e.g. output/refresh_2026q2) leaves the
 # default artifacts untouched. SLT names the TIC SLT Table 3 input.
 BUILD_ROOT ?= .
