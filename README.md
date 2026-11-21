@@ -1,70 +1,21 @@
 # rowflow
 
-`rowflow` is a descriptive rest-of-world Treasury absorption accounting package for the Treasury Deposit Component system. In this project family, **TDC** means the Treasury Deposit Component as defined upstream by [`smkwray/tdcest`](https://github.com/smkwray/tdcest), the canonical quarterly estimator used as the TDC anchor.
+`rowflow` builds descriptive panels and tables that split rest-of-world US Treasury absorption into foreign official institutions, foreign private holders, and international and regional organizations. It combines monthly Treasury International Capital (TIC) data, quarterly Financial Accounts of the United States (Z.1) data, and optional Treasury issuance and domestic liquidity panels, writing merged panels, episode totals, OLS determinant tables, SVG charts, and Markdown reports.
 
-The package splits foreign Treasury absorption into **foreign official**, **foreign private**, and separately tracked international/regional organization components, then joins that split to Treasury maturity composition and domestic liquidity diagnostics. The goal is to clarify *who absorbed Treasury supply*. It is not a causal design for domestic liquidity effects.
+## Data
 
-The determinant layer includes source-regime ledgers, episode absorption accounting, a monthly determinant panel, and official/private determinant tables. These outputs are exploratory descriptive associations, not causal demand curves.
+Standalone runs download public data directly, with no API keys required:
 
-## Output scope
+- Treasury International Capital (TIC): pre-2023 monthly net foreign purchases of long-term US Treasury bonds and notes (`tressect.txt`) and expanded SLT Table 3 monthly foreign Treasury holdings and net flows from February 2023 onward (`slt_table3.txt`).
+- Federal Reserve Financial Accounts (Z.1) via public FRED CSV downloads: quarterly unadjusted foreign official and foreign private Treasury transactions and holdings.
+- FRED public CSV download of the nominal broad US dollar index.
+- Dated Federal Reserve Z.1 release archives and vintage-matched ALFRED series when running the quarterly rest-of-world account commands.
 
-The package can produce monthly TIC and quarterly Z.1 holder-flow panels,
-source-regime ledgers, complete-window episode totals and denominator shares,
-and descriptive determinant tables. Numerical results require a dated input
-receipt and a regenerated output; historical local builds are not current
-candidate evidence. Missing observations do not establish zero absorption.
-
-Determinant tables report OLS coefficients with lag-3 Newey–West/HAC standard
-errors and asymptotic-normal p-values under the default monthly specification.
-They remain descriptive associations.
-
-The dated ROW ledger separates transaction-accounting checks from stock
-certification. Its Treasury cross-equation reconstruction is independent of the
-published asset total, but uses the same Z.1 system and discrepancy; it is not an
-external independent check. Every configured stock leaf is reported even when
-its level, revaluation, other-volume adjustment, or valuation basis is missing
-or unestablished. Source-published residual adjustments provide source
-consistency, not independent stock certification. No adjustment is manufactured.
-
-`build-z1-ledger` reports `transaction_ledger_admissible` separately from
-`stock_source_consistency` and `independent_stock_validation`. Its `--gate`
-selects which status determines the exit code; the default is the transaction
-gate. Transaction-system admission requires all 11 checks in all 96 quarters
-of both frozen vintages. The unavailable independent stock check does not veto
-an estimator that consumes only transactions. Claims about accumulated positions
-or ownership persistence still require their own stock evidence.
-
-The gold/SDR diagnostic checks the [Fed's current composite-flow formula](https://www.federalreserve.gov/apps/fof/SeriesAnalyzer.aspx?s=FU263011105&t=)
-against dated cells and reports missing components. The retained SDR-allocation
-level has a narrower stated concept: the [March stock table](https://www.federalreserve.gov/releases/z1/20260319/html/l133.htm)
-excludes monetary gold. No undocumented dated stock alias is substituted.
-FR and FV are [complementary residual concepts](https://www.federalreserve.gov/apps/fof/SeriesStructure.aspx),
-not two independent observations. `recent_external_position_change_check` is
-`not_run_in_ledger_build`; a separate recent-period comparison cannot certify
-the full historical stock perimeter.
-
-## Claim boundary
-
-This repo is designed for public-safe descriptive accounting.
-
-Allowed claims:
-
-- foreign Treasury absorption can be summarized separately for official and private foreign holders;
-- international/regional organizations can be carried as a separate sidecar category;
-- TIC and Z.1 give complementary official/private views with different frequency, source definitions, and revisions;
-- bill share, weighted-average maturity, TGA, reserves, deposits, MMFs, ON RRP, and TDC anchors are diagnostics for interpretation.
-
-Not allowed without a stronger design:
-
-- causal claims about domestic deposit, reserve, MMF, or yield effects;
-- country-level beneficial-owner claims beyond source definitions;
-- claims that TIC transactions and Z.1 transactions are interchangeable;
-- claims that the pre-2023 TIC long-term bonds-and-notes bridge is identical to the February 2023-forward expanded SLT total-Treasury concept;
-- claims that reused sibling diagnostics are structural parameters.
+Full real-data `make` builds also read local CSV outputs from sibling checkouts (`buycurve`, `liqsub`, `tdcest`, and optionally `qrawatch`, `tdcladder`, `bankcap`, `tdcpass`, `tdcatlas`) located under `..`, or at paths set by `<PROJECT>_ROOT` environment variables (for example `BUYCURVE_ROOT`, `LIQSUB_ROOT`, `TDCEST_ROOT`, `QRAWATCH_ROOT`). In `Makefile`, the default SLT Table 3 path points to a local `buycurve` checkout and can be overridden with `SLT=<file>`.
 
 ## Install
 
-Python 3.11 or later is required. From the repository root:
+Requires Python 3.11 or later. From the repository root:
 
 ```bash
 python -m venv .venv
@@ -72,151 +23,94 @@ source .venv/bin/activate
 python -m pip install -e '.[dev]'
 ```
 
-Run the fixture-backed tests:
+## Usage
+
+Run the fixture-backed pipeline with no network access or sibling repositories:
 
 ```bash
-python -B -m pytest -q
-ruff check .
-rowflow validate-config
+make smoke-fixtures
 ```
 
-## Command map
+Run the full real-data build when sibling repositories are present next to `rowflow`:
 
-These examples require the named input files. The test suite runs the fixture-backed
-pipeline without external data.
+```bash
+make real-package
+make real-determinants
+```
+
+Pass `BUILD_ROOT=<dir>` to write downloaded inputs, derived panels, and outputs under `<dir>` instead of the repository root, and `SLT=<file>` to point at a local copy of TIC SLT Table 3. `PYTHON`, `RUFF`, and `ROWFLOW` override the executables used by `make`.
+
+Individual CLI commands work on any local CSV or text files matching the expected schemas:
 
 ```bash
 rowflow validate-config
-rowflow validate-sibling-sources --sibling-root ..
-rowflow copy-sibling-outputs --sibling-root ..
-
-rowflow build-tic-row-panel \
-  --input data/imported/tic/slt_table3.txt \
-  --output data/derived/tic_row_monthly.csv
-
+rowflow download-z1-fred-transactions --output data/raw/z1/z1_row_official_private_transactions.csv
+rowflow build-tic-row-panel --input data/raw/tic/tressect.txt --output data/derived/tic_row_monthly_legacy.csv
+rowflow build-tic-row-panel --input data/imported/tic/slt_table3.txt --output data/derived/tic_row_monthly_slt.csv
 rowflow combine-tic-row-panels \
-  --input data/derived/tic_row_monthly_legacy_tressect.csv \
+  --input data/derived/tic_row_monthly_legacy.csv \
   --input data/derived/tic_row_monthly_slt.csv \
-  --output data/derived/tic_row_monthly_real.csv
-
-rowflow download-z1-fred-transactions \
-  --output data/raw/z1/z1_row_official_private_transactions.csv
-
+  --output data/derived/tic_row_monthly.csv
 rowflow build-z1-row-panel \
-  --input data/imported/z1/z1_row_official_private.csv \
+  --input data/raw/z1/z1_row_official_private_transactions.csv \
+  --transactions-are-quarterly \
   --output data/derived/z1_row_quarterly.csv
-
 rowflow build-rowflow-panel \
   --tic-panel data/derived/tic_row_monthly.csv \
   --z1-panel data/derived/z1_row_quarterly.csv \
-  --diagnostics data/imported/diagnostics/monthly_diagnostics.csv \
-  --tdc-context data/imported/tdcest/tdc_estimates.csv \
   --output data/derived/rowflow_panel.csv
-
 rowflow write-rowflow-report \
   --panel data/derived/rowflow_panel.csv \
   --z1-panel data/derived/z1_row_quarterly.csv \
   --output-md output/reports/rowflow_accounting_report.md \
   --figure-dir output/figures \
   --table-dir output/tables
-
-rowflow write-output-manifest --output output/manifests/rowflow_manifest.json
-rowflow validate-rowflow-package --strict
 ```
 
-Determinant-layer commands:
+For episode totals and monthly OLS determinant regressions (with lag-3 Newey-West HAC standard errors under `config/determinant_specs.yml`), run `make real-determinants` or see `rowflow --help` for the individual table and report commands.
+
+To download a dated Federal Reserve Z.1 archive, fetch vintage-matched ALFRED series, build the quarterly rest-of-world sources-and-uses account, and compare two vintages:
 
 ```bash
-rowflow write-source-regime-ledger \
-  --tic-panel data/derived/tic_row_monthly_real.csv \
-  --z1-panel data/derived/z1_row_quarterly_real.csv \
-  --output-csv output/tables/source_regime_ledger.csv \
-  --output-md output/reports/source_regime_ledger.md
-
-rowflow write-episode-absorption \
-  --panel data/derived/rowflow_panel.csv \
-  --z1-panel data/derived/z1_row_quarterly_real.csv \
-  --episodes config/episodes.yml \
-  --output output/tables/episode_absorption.csv
-
-rowflow build-determinant-panel \
-  --panel data/derived/rowflow_panel.csv \
-  --spec config/determinant_specs.yml \
-  --output data/derived/foreign_absorption_determinants_monthly.csv
-
-rowflow write-determinant-tables \
-  --panel data/derived/foreign_absorption_determinants_monthly.csv \
-  --spec config/determinant_specs.yml \
-  --output output/tables/monthly_tic_determinants.csv
-
-rowflow write-compact-determinant-table \
-  --determinants output/tables/monthly_tic_determinants.csv \
-  --output output/tables/monthly_tic_determinants_compact.csv
-
-rowflow write-compact-determinant-markdown \
-  --compact output/tables/monthly_tic_determinants_compact.csv \
-  --output-md output/reports/monthly_tic_determinants_compact.md
-
-rowflow write-determinant-report \
-  --panel data/derived/foreign_absorption_determinants_monthly.csv \
-  --ledger output/tables/source_regime_ledger.csv \
-  --episodes output/tables/episode_absorption.csv \
-  --determinants output/tables/monthly_tic_determinants.csv \
-  --output-md output/reports/foreign_absorption_determinants.md
+rowflow download-z1-archive --vintage 2026-03-19 --table fu133 --output data/raw/z1/2026-03-19
+rowflow download-z1-sidecars --vintage 2026-03-19 --spec config/row_ledger.yml --output data/raw/z1/2026-03-19/alfred
+rowflow build-z1-ledger --input data/raw/z1/2026-03-19 --spec config/row_ledger.yml --output output/z1_ledger_2026-03-19
+rowflow write-z1-revision-bridge --frozen output/z1_ledger_2026-03-19/quarterly.csv --revised output/z1_ledger_2026-06-11/quarterly.csv --output output/z1_revision_bridge.csv
 ```
 
-For a no-external-data smoke build, use the CSV files under `tests/fixtures/` as inputs. The tests show the complete fixture pipeline.
+## Output
 
-For a local real-data backend build with sibling repositories present, run:
+Generated files live under `data/derived/` and `output/` (both gitignored) and express dollar flows and levels in USD millions:
+
+| Path | Description |
+| --- | --- |
+| `data/derived/rowflow_panel.csv` | Monthly panel combining TIC flows and quarterly Z.1 transactions |
+| `output/tables/` | Episode totals, source-period summaries, and monthly OLS determinant tables |
+| `output/figures/` | SVG charts of official vs. private flows, official share, and stocks vs. flows |
+| `output/reports/` | Markdown summaries of accounting comparisons and determinant regressions |
+| `output/manifests/rowflow_manifest.json` | SHA-256 hashes of generated output files |
+
+`build-z1-ledger` writes the quarterly rest-of-world account table (`quarterly.csv`), detailed series table (`ledger.csv`), accounting cross-checks, and `summary.json` into its `--output` directory.
+
+## Limits
+
+- Results are descriptive accounting summaries and conditional associations; the package does not estimate causal demand curves or causal domestic liquidity effects.
+- Pre-2023 legacy TIC data (`tressect.txt`) cover long-term Treasury bonds and notes only, while expanded SLT Table 3 from February 2023 onward covers total Treasury securities. The two source periods carry explicit labels and are not pooled in determinant regressions.
+- TIC and Z.1 differ in frequency, coverage, and revision timing, and neither identifies ultimate beneficial owners beyond reported custodial and counterparty definitions.
+- In `build-z1-ledger`, transaction-accounting checks run across the configured Z.1 series, while independent stock checks remain unavailable where dated level, revaluation, or other-volume series are unestablished (for example, gold and SDR holdings).
+
+See [source notes](docs/source_notes.md) and the [rest-of-world Z.1 account notes](docs/row_ledger.md) for series details.
+
+## Tests
+
+The test suite runs against small CSV fixtures under `tests/fixtures/` with no network calls:
 
 ```bash
-make real-package
+python -B -m pytest -q
+ruff check src tests
+rowflow validate-config
 ```
 
-The real-data target uses the activated environment; `PYTHON`, `RUFF`, and
-`ROWFLOW` can override the executables. It builds the TIC panel from the reused local SLT cache, downloads the public legacy TIC `tressect.txt` bridge for pre-2023 long-term Treasury bonds and notes, downloads public FRED Z.1 `FU` transaction CSVs plus companion `FL` level series, and preserves source-regime labels before writing the real package outputs. The report step writes a compact results table and a stock-vs-flow figure for presentation.
+## License
 
-`BUILD_ROOT=<dir>` writes every downloaded input, sibling copy, derived panel, and output under `<dir>` and leaves the default artifacts untouched; `SLT=<file>` replaces the sibling SLT Table 3 cache with another copy of the same Treasury file.
-
-For the real determinant package, run:
-
-```bash
-make real-determinants
-```
-
-This target runs `make real-package`, writes the determinant ledger, episode table, determinant panel, descriptive determinant table, compact presentation CSV/Markdown, determinant report, manifest, and package validation. The determinant tables use OLS coefficients with lag-3 Newey–West/HAC standard errors and asymptotic-normal p-values and label inference as `hac_newey_west_lag_3` under the default monthly spec. FRED sidecars add Treasury yield, term-premium, broad-dollar, VIX, and Fed Treasury holdings controls.
-
-## Source strategy
-
-`rowflow` should reuse sibling outputs before downloading or transforming new data:
-
-- [`buycurve`](https://github.com/smkwray/buycurve): Treasury issuance composition, bill share, WAM, buyer mix, and TIC bridge context.
-- [`tdcladder`](https://github.com/smkwray/tdcladder): maturity/liquidity ladder context.
-- [`liqsub`](https://github.com/smkwray/liqsub): deposits, MMFs, ON RRP, reserves, TGA, and plumbing diagnostics.
-- [`bankcap`](https://github.com/smkwray/bankcap): H.8 bank-group mechanism context.
-- [`tdcest`](https://github.com/smkwray/tdcest): canonical quarterly TDC anchors.
-- [`tdcpass`](https://github.com/smkwray/tdcpass): arithmetic and measurement-boundary context.
-- [`tdcatlas`](https://github.com/smkwray/tdcatlas): episode framing.
-- [`qrawatch`](https://github.com/smkwray/qrawatch): QRA, Treasury debt-stock, and optional FRED market sidecars.
-- [`fp-tdc`](https://github.com/smkwray/fp-tdc): optional local FRED/Z.1 level cache for official/private ROW Treasury level context.
-
-The source contracts in `config/source_contracts.yml` record preferred sibling artifacts and the primary public sources to use only after reusable sibling artifacts are unavailable or insufficient.
-
-## Expected package layout
-
-```text
-rowflow/
-  config/                 # public metadata, contracts, variable curation, schemas
-  docs/                   # public design and source notes
-  src/rowflow/            # Python package and CLI implementation
-  tests/fixtures/         # tiny fixture inputs; no external data required
-  data/                   # ignored local raw/imported/derived data folders
-  output/                 # ignored local reports, figures, tables, manifests, and demos
-```
-
-## Interpretation
-
-The package supports descriptive source reconciliation and conditional
-associations. It does not identify individual beneficial owners or causal
-domestic-liquidity effects. See [source notes](docs/source_notes.md) and the
-[ROW ledger contract](docs/row_ledger.md) for the transaction and stock boundaries.
+MIT. See [LICENSE](LICENSE).
