@@ -3,8 +3,8 @@
 The ledger is descriptive legal-holder accounting. It cannot identify which
 dollars financed Treasury purchases or an exclusive foreign deposit offset.
 The default sample is 2002Q1–2025Q4. The March 19, 2026 source vintage is frozen;
-June 11 is a separate revision comparison. September 11 remains pending until
-its final release; preview data cannot overwrite either retained vintage.
+June 11 is a separate revision comparison. Preview data cannot overwrite either
+retained vintage.
 
 `config/row_ledger.yml` defines mutually exclusive asset, liability and equity
 leaves separately from totals, subtotals and memo rows. The loader accepts actual
